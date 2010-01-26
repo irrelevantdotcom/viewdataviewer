@@ -49,7 +49,7 @@ vv.php - display a viewdata/teletext frame as an image
 ------------------------------------------------------
 parameters:
 gal=<folder>
-page=<filename>
+page=<filename> OR text=<text to display>
 width=<columns>
 height=<lines>
 format=<option bits>
@@ -81,3 +81,9 @@ http://www.compulink.co.uk/~rrussell/bbcwin/bbcwin.html
 (This will work with free demo version.)
 
 Required if you wish to use another font file to that supplied.
+
+
+CHANGELOG
+=========
+New in vv0.5.2
+text=parameter to create ad-hoc text!

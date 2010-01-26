@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.1 beta
+ * @version 0.5.2 beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -22,6 +22,7 @@
  * Call with ttxview.php?page=65656a
  * where page = filename to load
  *   gal = folder to scan (default 'frames')
+*  OR text = character sequence to display
  * width = width in columns
  * height = height in lines
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH)
@@ -60,6 +61,7 @@ if (isset($_GET["gal"])) {
     // else $folder = "frames";
 } 
 
+$text = "";
 $longtext = "";
 $longdesc = 0;
 if (isset($_GET["longdesc"])) {
@@ -97,7 +99,13 @@ $page = "";
 if (isset($_GET["page"])) {
     if (preg_match('/^[a-zA-Z0-9_]{1,16}$/', $_GET['page'])) $page = $_GET["page"];
     else $error = "Invalid page number";
-} 
+} else {
+	if (isset($_GET["text"])) {
+	    $text = substr(html_entity_decode($_GET["text"]),0,40);
+		$donotcache = 1;
+		$alwaysrender = 1;
+	}
+}
 $cachepage = $folder . "_" . $page;
 
 $offset = 0;
@@ -160,13 +168,16 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             if ($error != "") {
                 $text = chr(129) . chr(157) . chr(135) . $error . "  " . chr(156);
                 $donotcache = 1;
-            } else { // sample text
-                $text = "The" . chr(129) . "quick" . chr(130) . "brown" . chr(131)
-                 . "fox" . chr(132) . "jumped" . chr(133) . "over" . chr(134) . "the" .
-                chr(135) . "lazy" . "dog" . chr(136) . "0123456789 ![]{}^#" . chr(141) . "Double" . chr(140) . "Height    " . "0123456789012345678901234567890123456789" . " Viewdata Viewer (C)2010 Rob O'Donnell  " .
-                chr(147) . "ssss" . chr(154) . "ssss" . chr(153) . "ssss" .
-                chr(8) . "flash?" . chr(136) . "flash?";
-                $donotcache = 1;
+            } else { 
+				if ($text == "") {
+					// sample text
+	                $text = "The" . chr(129) . "quick" . chr(130) . "brown" . chr(131)
+	                 . "fox" . chr(132) . "jumped" . chr(133) . "over" . chr(134) . "the" .
+	                chr(135) . "lazy" . "dog" . chr(136) . "0123456789 ![]{}^#" . chr(141) . "Double" . chr(140) . "Height    " . "0123456789012345678901234567890123456789" . " Viewdata Viewer (C)2010 Rob O'Donnell  " .
+	                chr(147) . "ssss" . chr(154) . "ssss" . chr(153) . "ssss" .
+	                chr(8) . "flash?" . chr(136) . "flash?";
+	                $donotcache = 1;
+				}
             } 
         } else {
             $text = "";
