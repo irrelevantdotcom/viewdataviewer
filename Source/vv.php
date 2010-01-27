@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.2 beta
+ * @version 0.5.3 beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -26,9 +26,11 @@
  * width = width in columns
  * height = height in lines
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH)
+*  add 256 for case insensitivity
  * add 128 to disable black 
  * add 64 to disable cache write
  *    add 32 to disable cache read
+ *  add 16 to map . in pagename to /
  * longdesc=1 - disable graphic and provide textual equivelant!
  *  =2 ditto but replace graphics with *s (as per Prestel old 300 baud access!)
  * thumbnail=1 - display image as thumbnail
@@ -40,6 +42,26 @@
  */
 
 include "GIFEncoder.class.php";
+
+function similar_file_exists($filename) {
+  if ($filename == "") return "";
+  
+  if (file_exists($filename)) {
+    return $filename;
+  }
+  $dir = dirname($filename);
+  if (!file_exists($dir)) {
+      if (($dir=similar_file_exists($dir)) == "") return "";
+  }
+  $files = glob($dir . '/*');
+  $lcaseFilename = strtolower($filename);
+  foreach($files as $file) {
+    if (strtolower($file) == $lcaseFilename) {
+      return $file;
+    }
+  }
+  return "";
+} 
 
 $error = "";
 // image size in characters
@@ -97,7 +119,7 @@ $donotcache = 0;
 $alwaysrender = 0;
 $page = "";
 if (isset($_GET["page"])) {
-    if (preg_match('/^[a-zA-Z0-9_]{1,16}$/', $_GET['page'])) $page = $_GET["page"];
+    if (preg_match('/^[a-zA-Z0-9_.]{1,16}$/', $_GET['page'])) $page = $_GET["page"];
     else $error = "Invalid page number";
 } else {
 	if (isset($_GET["text"])) {
@@ -106,7 +128,9 @@ if (isset($_GET["page"])) {
 		$alwaysrender = 1;
 	}
 }
+
 $cachepage = $folder . "_" . $page;
+
 
 $offset = 0;
 if (isset($_GET["offset"])) {
@@ -119,7 +143,6 @@ if (isset($_GET["offset"])) {
 if ($thumbnail) {
     $cachepage.= "_thumb".$thumb_w;
 }
-
 // what format is it in?
 $format = 0;
 if (isset($_GET["format"])) {
@@ -127,18 +150,23 @@ if (isset($_GET["format"])) {
         $format = 0 + $_GET["format"];
         if ($format & 128) {
             $black = 0;
-            $format -= 128;
+//            $format -= 128;
         } 
         if ($format & 64) {
             $donotcache = 1;
-            $format -= 64;
+//            $format -= 64;
         } 
         if ($format & 32) {
             $alwaysrender = 1;
-            $format -= 32;
+//            $format -= 32;
         } 
+		if ($format & 16) {
+			$page=str_replace(".","/",$page);
+		}
     } else $error = "Invalid format";
 } 
+
+
 // first check to see if cached copy already exists
 // gif image (for animations)
 if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . $cachepage . ".gif")) {
@@ -181,12 +209,21 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             } 
         } else {
             $text = "";
-            if (file_exists("./" . $folder . "/" . $page))
-                $text = file_get_contents("./" . $folder . "/" . $page);
+			$fnam= "./" . $folder . "/" . $page;
+            if (file_exists($fnam))
+                $text = file_get_contents($fnam);
             else {
-                $text = chr(129) . chr(157) . chr(135) . "File not found  " . chr(156);
-                $donotcache = 1;
-                $format = 1;
+				if ($format & 256) {
+				    if (($fnam = similar_file_exists($fnam)) != "" ) {
+				        $text = file_get_contents($fnam);
+				    } 
+				}
+                if ($text == "") {
+                    
+	                $text = chr(129) . chr(157) . chr(135) . "File not found  " . chr(156);
+	                $donotcache = 1;
+	                $format = 1;
+				}
             } 
 
             if ($offset > strlen($text)) {

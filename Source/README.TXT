@@ -87,3 +87,9 @@ CHANGELOG
 =========
 New in vv0.5.2
 text=parameter to create ad-hoc text!
+
+new: vb0.1.2 = viewdata browser.  Very simple browser for gnome format pages.
+
+New in vv0.5.3
+format | 16 maps . in pagename to / in filename
+format | 256 attempts to be case insensitive on page->filenames.
