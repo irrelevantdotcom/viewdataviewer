@@ -44,9 +44,14 @@ vl.php	- gallery type lister
 GIFEncoder.class.php - Animated gif encoder (see comments for author)
 fntfilecreator.bbc - program to create required GDF font files.
 
+Suitable fonts are included in the fonts directory.  You may co-locate these alongside vv.php, or leave them in the directory and adjust the references within vv.php to the correct path.
+
+Please ensure you create a folder 'cache' in the same folder as vv.php
+and allow write access to it.
+
 
 vv.php - display a viewdata/teletext frame as an image
-------------------------------------------------------
+s------------------------------------------------------
 parameters:
 gal=<folder>
 page=<filename> OR text=<text to display>
