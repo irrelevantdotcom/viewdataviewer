@@ -3,7 +3,7 @@
 /**
  * Simple Viewdata Browser
  * 
- * @version 0.1.2
+ * @version 0.1.3
  * @copyright 2010 Rob O'Donnell
  */
 
@@ -31,6 +31,7 @@ function similar_file_exists($filename) {
  
 $folder = "frames";
 $urf="1a";
+$ipheader = chr(2)."The Gnome At Home";
 
 $page = "";
 if (isset($_GET["page"])) {
@@ -65,6 +66,12 @@ if ($error != "") {
     echo $error;
 } else {
 
+	if (substr($text,104,4) == "    " || substr($text,104,4) == chr(160).chr(160).chr(160).chr(160)) {
+	    $top = str_pad($ipheader,24).chr(7).str_pad($page,10).chr(3)."  0p";
+	} else {
+	    $top = substr($text,104,24).chr(7).str_pad($page,10).chr(3)."  0p";
+	}
+
     ?><head>
 <title>Viewdata Page Browser</title></head>
 <body>
@@ -85,43 +92,27 @@ document.onkeypress=textsizer
 
 <center>
 <?php
-	if ($mode == 0) {
+	if ($mode == 0) { 
 ?>	    
-   <img src="vv.php?format=274&gal=<?php echo $folder;
-
-    ?>&page=<?php echo $page;
+   <img src="vv.php?format=786&gal=<?php echo $folder;?>&page=<?php echo $page;
     if ($offset > 0) {
-
         ?>&offset=<?php echo $offset;
-    } 
-
-    ?>" alt="<?php echo $page;
-
-    ?>" longdesc="vv.php?format=274&longdesc=1&gal=<?php echo $folder;
-
-    ?>&page=<?php echo $page;
+    } ?>&top=<?php echo htmlentities($top); ?>" alt="<?php echo $page; ?>" 
+	longdesc="vv.php?format=786&longdesc=1&gal=<?php echo $folder;?>&page=<?php echo $page;
     if ($offset > 0) {
-
         ?>&offset=<?php echo $offset;
-    } 
-
-    ?>" />
+    } ?>" />
 <br>
 <small><a href="vb.php?mode=1&page=<?php echo $page; ?>">Switch to text mode</a></small><br />
-
 	<?php
 	} else {
 
 	?>
-   <iframe width=350 height=400 src="vv.php?longdesc=2&format=274&gal=<?php echo $folder;
-
-    ?>&page=<?php echo $page;
+   <iframe width=350 height=400 SCROLLING="no" 
+   src="vv.php?longdesc=2&format=786&gal=<?php echo $folder; ?>&page=<?php echo $page;
     if ($offset > 0) {
-
         ?>&offset=<?php echo $offset;
-    } 
-
-    ?>"  /></iframe>
+    } ?>&top=<?php echo htmlentities($top); ?>"  /></iframe>
 <br>
 <small><a href="vb.php?mode=0&page=<?php echo $page; ?>">Switch to graphics mode</a></small><br />
 	

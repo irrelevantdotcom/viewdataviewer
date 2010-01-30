@@ -93,3 +93,10 @@ new: vb0.1.2 = viewdata browser.  Very simple browser for gnome format pages.
 New in vv0.5.3
 format | 16 maps . in pagename to / in filename
 format | 256 attempts to be case insensitive on page->filenames.
+
+new in vb0.1.3
+bug fix longdesc link.
+construct top status line.
+
+new in vv0.5.5
+just tinkering to get frame recognition working better.

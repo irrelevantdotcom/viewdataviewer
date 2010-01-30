@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.3 beta
+ * @version 0.5.5 beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -25,7 +25,9 @@
 *  OR text = character sequence to display
  * width = width in columns
  * height = height in lines
+*  top = single line to place at top of page
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH)
+*  add 512 for $top to overwrite top line of page
 *  add 256 for case insensitivity
  * add 128 to disable black 
  * add 64 to disable cache write
@@ -99,6 +101,10 @@ if (isset($_GET["thumbnail"])) {
     // else $error = "Invalid flag";
 } 
 
+$top="";
+if (isset($_GET["top"])) {
+    $top = str_pad(html_entity_decode($_GET["top"]),$width);
+}
 
 // font sizes. must match that in font files
 $fwidth = 12;
@@ -123,7 +129,7 @@ if (isset($_GET["page"])) {
     else $error = "Invalid page number";
 } else {
 	if (isset($_GET["text"])) {
-	    $text = substr(html_entity_decode($_GET["text"]),0,40);
+	    $text = substr(html_entity_decode($_GET["text"]),0,$width);
 		$donotcache = 1;
 		$alwaysrender = 1;
 	}
@@ -237,10 +243,29 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             } 
 
             if (($format & 15) == 0) {
-                if (chr(127 & ord(substr($text, 143, 1))) == "p" &&
-                        is_numeric(chr(127 & ord(substr($text, 142, 1))))) {
-                    $format += 2; // gnome host frame
-                } 
+				$notsm=FALSE;
+				$defsm=FALSE;
+				for ($i=0;$i<10 && $ntsm == FALSE;$i++) {
+					$route=substr($text,14+9*$i,9);
+					if ($route == "*        ") {
+					    $defsm=TRUE;
+					}
+/*					$fsp =strpos($route," ");
+					$rln = strlen(rtrim($route));
+					if ($fsp == 0 || ($rln < 9 && $fsp != $rln+1)) {
+					    $notsm=TRUE; $defsm=FALSE;
+					} */
+				}
+				if ($defsm) {
+				    $format += 2;
+				} else if (!$notsm) {
+					if (substr($text,0,15) == str_repeat(" ",14 )."*") {
+					    $format += 2;
+					} else if (chr(127 & ord(substr($text, 143, 1))) == "p" &&
+	                        is_numeric(chr(127 & ord(substr($text, 142, 1))))) {
+	                    $format += 2; // gnome host frame
+	                } 
+				}
             } 
             if (($format & 15) == 0) {
                 $char = ord(substr($text, 920, 1)); // ABVTtxt version byte
@@ -257,6 +282,16 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                 $text = substr($text, 0, 920);
                 $height = 24; // 23+1 blank
             } 
+			
+			if ($top != "") {
+			    if ($format & 512) { // overwrite top line
+			        $text = substr_replace($text,$top,0,$width);
+			    } else { // insert
+					$text = $top .$text;
+					$height++;
+				}
+			}
+			
         } 
     } 
 
