@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.5 beta
+ * @version 0.5.6 beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -241,10 +241,18 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             } else {
                 $text = substr($text, $offset);
             } 
+			
+			if (($format & 15) == 0) {
+			    if (strpos(substr($text,0,920),chr(13).chr(10)) !== FALSE ||
+				strpos(substr($text,0,920),chr(10).chr(13)) !== FALSE ) {
+			        $format += 3;
+			    }
+			}
 
             if (($format & 15) == 0) {
 				$notsm=FALSE;
 				$defsm=FALSE;
+				// look for a SofMac route table with an empty route in it ("*")
 				for ($i=0;$i<10 && $ntsm == FALSE;$i++) {
 					$route=substr($text,14+9*$i,9);
 					if ($route == "*        ") {
@@ -259,7 +267,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				if ($defsm) {
 				    $format += 2;
 				} else if (!$notsm) {
-					if (substr($text,0,15) == str_repeat(" ",14 )."*") {
+					if (strpos(substr($text,0,16),chr(0).chr(0)) !== FALSE) {
 					    $format += 2;
 					} else if (chr(127 & ord(substr($text, 143, 1))) == "p" &&
 	                        is_numeric(chr(127 & ord(substr($text, 142, 1))))) {
@@ -295,6 +303,61 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         } 
     } 
 
+	if (($format & 15) == 3) {	// RAW mode
+		$rawtext = $text;
+		$text = str_repeat(" ",960);
+		$cx = 0; $cy=0;
+		$tp = 0; $esc=0;
+        while ($tp < strlen($rawtext)) {
+            $char = ord($rawtext[$tp]);
+			switch(0+$char){
+				case 13 :
+					$cx = 0;
+					break;
+				case 9:
+					$cx++;
+					break;
+				case 10 :
+					$cy++;
+					if ($cy>23) $cy=0;
+					break;
+				case 8:
+					$cx -= 1;
+					break;
+				case 11:
+					$cy--;
+					if ($cy<0) $cy=23;
+					break;
+				case 27:
+					$esc = 1; //!$esc;
+					break;
+				default:
+					if ($esc) {
+						$esc = 0;
+						$char = $char & 31;
+					} 
+					$text[($cx+(40 * $cy))] = chr($char);
+					$cx++;
+					break;
+			} // switch
+			if ($cx>39) {
+			    $cx=0;
+				$cy++;
+				if ($cy>23) $cy=0;
+			}
+			if ($cx<0) {
+			    $cx=39;
+				$cy--;
+				if ($cy<0) $cy=23;
+			}
+			$tp++;
+		}
+	}
+	
+	
+	
+	
+	
     if (!$longdesc) { // don't bother for text mode
         // image size in pixels
         $pwidth = $width * $fwidth + 2 * $lborder;
@@ -334,7 +397,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         $tp = 0;
 
         while ($tp < strlen($text)) {
-            $char = ord($text{$tp}); // int!
+            $char = ord($text[$tp]); // int!
             if ($doublebottom) { // if we're on the bottom row of a double height bit
                 $char = $prev[$cx]; // use character from previous row!
             } else { // otherwise

@@ -3,7 +3,7 @@
 /**
  * Simple Viewdata Browser
  * 
- * @version 0.1.3
+ * @version 0.1.5
  * @copyright 2010 Rob O'Donnell
  */
 
@@ -76,19 +76,6 @@ if ($error != "") {
 <title>Viewdata Page Browser</title></head>
 <body>
 
-<script type="text/javascript">
-function textsizer(e){
-var evtobj=window.event? event : e //distinguish between IE's explicit event object (window.event) and Firefox's implicit.
-var unicode=evtobj.charCode? evtobj.charCode : evtobj.keyCode
-var actualkey=String.fromCharCode(unicode)
-if (actualkey=="1")
-document.body.style.fontSize="120%"
-if (actualkey=="z")
-document.body.style.fontSize="100%"
-}
-document.onkeypress=textsizer
-</script>
-
 
 <center>
 <?php
@@ -118,8 +105,15 @@ document.onkeypress=textsizer
 	
 	<?php
 	}
+	
+	$routestuff="";
 ?>
 <br>
+<script type="text/javascript">
+function textsizer(e){
+var evtobj=window.event? event : e //distinguish between IE's explicit event object (window.event) and Firefox's implicit.
+var unicode=evtobj.charCode? evtobj.charCode : evtobj.keyCode
+var actualkey=String.fromCharCode(unicode)
 
 <?php
     for ($i = 1; $i <= 10; $i++) {
@@ -128,13 +122,19 @@ document.onkeypress=textsizer
         	$route = "";
         }
         if ($route != "") {
-            echo '<a href="' . $PHP_SELF . '?mode=' . $mode . '&page=' . $route . 'a" id="link' . ($i % 10) . '">';
+            $routestuff .= '<a href="' . $PHP_SELF . '?mode=' . $mode . '&page=' . $route . 'a" id="link' . ($i % 10) . '">';
+			
+			echo 'if (actualkey=="' . ($i % 10) . '")
+location.href = "' . $PHP_SELF . '?mode=' . $mode . '&page=' . $route . 'a"
+
+';
+
         } 
-        echo "[" . ($i % 10) . "]";
+        $routestuff .= "[" . ($i % 10) . "]";
         if ($route != "") {
-            echo "</a>";
+            $routestuff .= "</a>";
         }
-		echo " ";
+		$routestuff .= " ";
     } 
     $route = substr($page, 0, strlen($page)-1);
     $frame = substr($page, strlen($page)-1);
@@ -145,14 +145,27 @@ document.onkeypress=textsizer
         $route = "";
     } 
     if ($route != "") {
-        echo '<a href="' . $PHP_SELF . '?mode=' . $mode . '&page=' . $route . '" id="linkHash">';
+        $routestuff .= '<a href="' . $PHP_SELF . '?mode=' . $mode . '&page=' . $route . '" id="linkHash">';
+			echo 'if (unicode==13)
+location.href = "' . $PHP_SELF . '?mode=' . $mode . '&page=' . $route . '"
+
+';
     } 
-    echo "[#] ";
+    $routestuff .= "[#] ";
     if ($route != "") {
-        echo "</a>";
+        $routestuff .= "</a>";
     } 
+?>
+}
+document.onkeypress=textsizer
+</script>
+<?php
+	echo $routestuff;
+
 } 
 
 ?>
+
+<br />or press a number key. For # press Enter.<br />
 </center>
 </body>

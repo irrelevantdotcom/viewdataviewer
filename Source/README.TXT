@@ -105,3 +105,10 @@ construct top status line.
 
 new in vv0.5.5
 just tinkering to get frame recognition working better.
+
+new in vv0.5.6
+more tinkering with sofMac format recognition. Why did nobody put an easy id in...
+Initial added support for RAW mode (format=3) (== .vdt files)
+
+new in vb 0.1.5
+add javascript to allow keypress selection of routes.
