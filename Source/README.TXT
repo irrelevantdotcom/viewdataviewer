@@ -39,41 +39,62 @@ CONSIDERATION OF THIS AND WITHOUT CHECKING FOR UPDATES FIRST.
 
 
 Files included herein:
-vv.php	- viewdata viewer
-vl.php	- gallery type lister
+vv.php	- viewdata viewer- this is the main focus of the project.
+vl.php	- gallery type lister - copy of script from my site that uses vv.php
+vb.php  - simple viewdata browser (for SofMac/Gnome format frames)
 GIFEncoder.class.php - Animated gif encoder (see comments for author)
 fntfilecreator.bbc - program to create required GDF font files.
 
-Suitable fonts are included in the fonts directory.  You may co-locate these alongside vv.php, or leave them in the directory and adjust the references within vv.php to the correct path.
+Suitable fonts are included in the fonts directory.  You may co-locate these
+alongside vv.php, or leave them in the directory and adjust the references 
+within vv.php to the correct path.
 
 Please ensure you create a folder 'cache' in the same folder as vv.php
 and allow write access to it.
 
 
 vv.php - display a viewdata/teletext frame as an image
-s------------------------------------------------------
+------------------------------------------------------
 parameters:
 gal=<folder>
 page=<filename> OR text=<text to display>
+offset=<bytes> default=0, skip <bytes> from start of file.
 width=<columns>
-height=<lines>
+height=<lines> (of source file, not incl. "top")
+longdesc=<mode> 0(default)=graphic, 1=text, 2=<pre>text with * for graphics.
+thumbnail=<tn size> 0(default)=full size, 0<n<3 = n*100 pixel wide image.
+top=<text> optional line to insert above image (see also format b9)
 format=<option bits>
+--format b9 = "top" text overwrites top line in file.
+--format b8 = attempts to be case insensitive on page->filenames.
 --format b7 = disable black as a colour
 --format b6 = disable writing rendered file to cache
 --format b5 = disable checking cache for pre-rendered file
+--format b4 = maps . in pagename to / in filename
 --format bits 0-3  file type override
 
 vl.php - display a web page showing all frames in a folder
 ----------------------------------------------------------
+This should be treated as an example of how to use vv.php, as it is taken
+from my website and therefore tailored towards that (and currently is in a
+state of flux, anyway!)
 parameters:
 gal=<folder>
 layout=<layout>  0=horizintal, 1=vertical
 cols=<table cols> default 4/1 for horiz/vert
+baseurl=<prefix>
 
 If a file is found with a matching .txt file, that file is read to obtain
 a title (line 1) and description (rest of lines).  The title is shown under
 the thumbnail for horizontal view, and both are shown alongside it for
 vertical view.
+
+If a file "index.txt" is found in the gallery folder, then it is used to 
+source titles and descriptions for any files without their own .txt
+line format is
+filename:title:description
+or
+filename+offset:title:description
 
 This is intended to be used as a component frame to a larger web page.
 
@@ -112,3 +133,13 @@ Initial added support for RAW mode (format=3) (== .vdt files)
 
 new in vb 0.1.5
 add javascript to allow keypress selection of routes.
+
+new in vl 0.3.1
+tinker with layout and css support. only relevant for own use.
+add index.txt file support. 
+add baseurl option. Prefix all URLs in output with specified string.
+
+new in vl 0.3.2
+add pagination!  GET parameters  start=n qty=n
+if qty is defined, first/prev/next/last links are displayed.
+any non-script paramters are passed on within these links.
