@@ -143,3 +143,7 @@ new in vl 0.3.2
 add pagination!  GET parameters  start=n qty=n
 if qty is defined, first/prev/next/last links are displayed.
 any non-script paramters are passed on within these links.
+
+new in vl 0.3.3.
+add zoom parameter to show full size version of one image. Paging optons then
+ refer to next/prev image as required.  May be complete now for my useage.
