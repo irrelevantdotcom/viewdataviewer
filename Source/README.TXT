@@ -147,3 +147,7 @@ any non-script paramters are passed on within these links.
 new in vl 0.3.3.
 add zoom parameter to show full size version of one image. Paging optons then
  refer to next/prev image as required.  May be complete now for my useage.
+
+new in vv0.5.7
+Support for "Axis Microbase" datafiles.  recognition works. First frame
+(incl. header) is at offset 4096 (defaulted).

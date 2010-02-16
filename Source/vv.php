@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.6 beta
+ * @version 0.5.7 beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -26,7 +26,7 @@
  * width = width in columns
  * height = height in lines
 *  top = single line to place at top of page
- * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH)
+ * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH) 5-Axis
 *  add 512 for $top to overwrite top line of page
 *  add 256 for case insensitivity
  * add 128 to disable black 
@@ -232,6 +232,17 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				}
             } 
 
+			if (($format & 15) == 0 && strlen($text) >= 5120 ) {
+				if ( substr($text,4096,2) == chr(0)."F" 
+				    && substr($text,4098,10) == substr($text,16,10)
+					) { // Axis database
+				 	  $format +=5; 
+				}
+			    
+			}
+		  if (($format & 15) == 5 && $offset == 0) {
+		      $offset = 4096;
+		  }
             if ($offset > strlen($text)) {
                 $offset = 0;
                 $cachepage = $folder . "_" . $page;
@@ -241,7 +252,6 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             } else {
                 $text = substr($text, $offset);
             } 
-			
 			if (($format & 15) == 0) {
 			    if (strpos(substr($text,0,920),chr(13).chr(10)) !== FALSE ||
 				strpos(substr($text,0,920),chr(10).chr(13)) !== FALSE ) {
@@ -290,6 +300,11 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                 $text = substr($text, 0, 920);
                 $height = 24; // 23+1 blank
             } 
+			if (($format & 15) == 5) {
+				$text = substr($text,64,920);
+				$height = 24;
+			    
+			}
 			
 			if ($top != "") {
 			    if ($format & 512) { // overwrite top line
@@ -330,6 +345,9 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 					break;
 				case 27:
 					$esc = 1; //!$esc;
+					break;
+				case 30:
+					$cx = $cy = 0;
 					break;
 				default:
 					if ($esc) {
@@ -406,6 +424,13 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 
             $fnum = $fontnum;
             // if (($format & 15) < 3) { 
+
+			if (($format & 15) == 5) {
+				if ($char & 128) {	// top bit set
+				    $char -= 192;
+				}
+			    
+			}
             // strip top bit in image files
             $char = $char & 127;
             // }
