@@ -151,3 +151,14 @@ add zoom parameter to show full size version of one image. Paging optons then
 new in vv0.5.7
 Support for "Axis Microbase" datafiles.  recognition works. First frame
 (incl. header) is at offset 4096 (defaulted).
+
+new in vb0.1.7
+Support for Axis microbase format datafiles for browsing.
+Integration with existing websites via baseurl & passing on other GET paramaters
+
+new in vv0.5.8
+Support for !SVReader format files.
+
+new in vb0.1.8
+Support for !SVReader format files.
+Bug fixes with website integration.

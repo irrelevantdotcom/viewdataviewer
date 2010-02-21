@@ -1,7 +1,7 @@
 <?php 
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.3 beta
+// Version 0.3.4 beta
 // See README.TXT for important information.
 
 /*
@@ -294,9 +294,16 @@ View as text</a></small><br />
 if (isset($_GET['qty']) || $zoom>=0) {
     $restp = "";
     foreach ($_GET as $key => $value) {
-        if (stripos("zoom|textmode|layout|cols|gal|baseurl|start", $key) === false) {
-            $restp .= $key . "=" . $value . "&";
-        } 
+		if (isset($_GET['baseurl'])) {
+	        if (stripos("zoom|textmode|layout|cols|gal|baseurl|start", $key) === false) {
+	            $restp .= $key . "=" . $value . "&";
+	        } 
+		} else {
+	        if (stripos("start", $key) === false) {
+	            $restp .= $key . "=" . $value . "&";
+	        } 
+		
+		}
     } 
     $nextp = "";
     $prevp = "";

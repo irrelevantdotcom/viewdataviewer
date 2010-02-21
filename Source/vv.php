@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.7 beta
+ * @version 0.5.8 beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -27,6 +27,7 @@
  * height = height in lines
 *  top = single line to place at top of page
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH) 5-Axis
+*  6 = !SVReader
 *  add 512 for $top to overwrite top line of page
 *  add 256 for case insensitivity
  * add 128 to disable black 
@@ -240,6 +241,11 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				}
 			    
 			}
+			if (($format & 15) == 0 && ($text[21] == "Y" || $text[21] == "N") &&
+			($text[22] == "Y" || $text[22] == "N") && ($text[10] == "Y" || $text[10] == "N")
+			) {  // !SVreader
+			    $format += 6;
+			}
 		  if (($format & 15) == 5 && $offset == 0) {
 		      $offset = 4096;
 		  }
@@ -305,6 +311,11 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				$height = 24;
 			    
 			}
+			if (($format & 15) == 6) {
+				$text = substr($text,190);
+				$height = 24;
+			    
+			}
 			
 			if ($top != "") {
 			    if ($format & 512) { // overwrite top line
@@ -318,7 +329,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         } 
     } 
 
-	if (($format & 15) == 3) {	// RAW mode
+	if (($format & 15) == 3 || ($format & 15)==6) {	// RAW mode
 		$rawtext = $text;
 		$text = str_repeat(" ",960);
 		$cx = 0; $cy=0;
@@ -371,9 +382,6 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 			$tp++;
 		}
 	}
-	
-	
-	
 	
 	
     if (!$longdesc) { // don't bother for text mode
