@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.8 beta
+ * @version 0.5.9 beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -27,7 +27,7 @@
  * height = height in lines
 *  top = single line to place at top of page
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH) 5-Axis
-*  6 = !SVReader
+*  6 = !SVReader, 7=Axis "i" format
 *  add 512 for $top to overwrite top line of page
 *  add 256 for case insensitivity
  * add 128 to disable black 
@@ -241,12 +241,24 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				}
 			    
 			}
+			if (($format & 15) == 0 && strlen($text) >= 5120 ) {
+				if ( substr($text,4096,2) == chr(240)."i" 
+				    && substr($text,4098,10) == substr($text,16,10)
+					) { // Axis "i" database
+				 	  $format +=7; 
+				}
+			    
+			}
+
+
+
+
 			if (($format & 15) == 0 && ($text[21] == "Y" || $text[21] == "N") &&
 			($text[22] == "Y" || $text[22] == "N") && ($text[10] == "Y" || $text[10] == "N")
 			) {  // !SVreader
 			    $format += 6;
 			}
-		  if (($format & 15) == 5 && $offset == 0) {
+		  if ((($format & 15) == 5 || ($format & 15) == 7) && $offset == 0) {
 		      $offset = 4096;
 		  }
             if ($offset > strlen($text)) {
@@ -309,12 +321,14 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 			if (($format & 15) == 5) {
 				$text = substr($text,64,920);
 				$height = 24;
-			    
 			}
 			if (($format & 15) == 6) {
 				$text = substr($text,190);
 				$height = 24;
-			    
+			}
+			if (($format & 15) == 7) {
+				$text = substr($text,104,920);
+				$height = 24;
 			}
 			
 			if ($top != "") {
@@ -433,7 +447,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             $fnum = $fontnum;
             // if (($format & 15) < 3) { 
 
-			if (($format & 15) == 5) {
+			if (($format & 15) == 5 || ($format & 15) == 7) {
 				if ($char & 128) {	// top bit set
 				    $char -= 192;
 				}

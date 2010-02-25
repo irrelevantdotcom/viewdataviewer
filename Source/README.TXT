@@ -162,3 +162,12 @@ Support for !SVReader format files.
 new in vb0.1.8
 Support for !SVReader format files.
 Bug fixes with website integration.
+
+new in vv0.5.9
+Support for alternate "i" format Axis database
+
+new in vb0.1.9
+Bug fixes in $_GET passing. FALSE !== false !!!!!
+
+new in vl 0.3.5
+Bug fixes in $_GET passing. FALSE !== false !!!!!

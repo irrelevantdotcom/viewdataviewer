@@ -1,7 +1,7 @@
 <?php 
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.4 beta
+// Version 0.3.5 beta
 // See README.TXT for important information.
 
 /*
@@ -87,7 +87,7 @@ $c = 0;
 $files = array();
 
 if ($dh = opendir ("./" . $folder . "/")) {
-    while (false !== ($dat = readdir ($dh))) { // for each file
+    while (FALSE !== ($dat = readdir ($dh))) { // for each file
         if (substr($dat, 0, 1) != "." && substr($dat, strlen($dat)-4, 4) != ".txt") {
             $files[] = $dat;
         } 
@@ -135,7 +135,7 @@ if ($zoom>=0) {
 	 if (file_exists("./" . $folder . "/" . $framelist[$zoom][0] . ".txt")) {
             $text = file_get_contents("./" . $folder . "/" . $framelist[$zoom][0] . ".txt");
             $cr = stripos($text, "\n");
-            if ($cr != false) {
+            if ($cr != FALSE) {
                 $title = substr($text, 0, $cr);
                 $text = substr($text, $cr + 1);
             } else {
@@ -178,7 +178,7 @@ if ($zoom>=0) {
         if (file_exists("./" . $folder . "/" . $dat . ".txt")) {
             $text = file_get_contents("./" . $folder . "/" . $dat . ".txt");
             $cr = stripos($text, "\n");
-            if ($cr != false) {
+            if ($cr != FALSE) {
                 $title = substr($text, 0, $cr);
                 $text = substr($text, $cr + 1);
             } else {
@@ -295,11 +295,11 @@ if (isset($_GET['qty']) || $zoom>=0) {
     $restp = "";
     foreach ($_GET as $key => $value) {
 		if (isset($_GET['baseurl'])) {
-	        if (stripos("zoom|textmode|layout|cols|gal|baseurl|start", $key) === false) {
+	        if (stripos("zoom|textmode|layout|cols|gal|baseurl|start", $key) === FALSE) {
 	            $restp .= $key . "=" . $value . "&";
 	        } 
 		} else {
-	        if (stripos("start", $key) === false) {
+	        if (stripos("start", $key) === FALSE) {
 	            $restp .= $key . "=" . $value . "&";
 	        } 
 		
