@@ -3,7 +3,7 @@
 /**
  * Simple Viewdata Browser
  * 
- * @version 0.1.9
+ * @version 0.1.B 
  * @copyright 2010 Rob O'Donnell
  */
 
@@ -118,7 +118,7 @@ if (($format & 15) == 5 || ($format & 15) == 7) {
 	} else {
 		$fnam="./" . $folder . "/" . $db;	
 	}
-    if (!file_exists("./cache/".$db.".idx")) {
+    if (!file_exists("./cache/".$folder . "_" .$db.".idx")) {
 		if (!file_exists($fnam)) {
 		    echo "Missing database file?";
 			exit;
@@ -133,9 +133,9 @@ if (($format & 15) == 5 || ($format & 15) == 7) {
 			}
 			
 		}
-        file_put_contents("./cache/".$db.".idx",$index);
+        file_put_contents("./cache/".$folder . "_" .$db.".idx",$index);
     } else {
-		$index= file_get_contents("./cache/".$db.".idx");
+		$index= file_get_contents("./cache/".$folder . "_" .$db.".idx");
 	}
 
 	parse_str($index,$idx);
@@ -250,12 +250,28 @@ if ($error != "") {
 	<?php
 	} else {
 
-	?>
+	$savedget=$_GET;
+	$savedText=$text;
+	$_GET = array("longdesc" => 2,
+	"format" => $format,
+	"gal" => $lfolder,
+	"page" => "$lgoto",
+	"offset" => $offset,
+	"top" => $top);
+	echo "<table border=\"1\"><tr><td>";
+	virtual("vv.php?");
+	echo "</td></tr></table>";
+	$_GET=$savedget;
+	$text=$savedText;
+
+/*	?>
    <iframe width=350 height=400 SCROLLING="no" 
    src="<?php echo $baseurl;?>vv.php?longdesc=2&format=<?echo $format; ?>&gal=<?php echo $lfolder; ?>&page=<?php echo $lgoto;
     if ($offset > 0) {
         ?>&offset=<?php echo $offset;
     } ?><?php if ($top != "") echo "&top=".htmlentities($top);; ?>"  /></iframe>
+*/
+?>
 <br>
 <small><a href="?<?php echo $restp;?>mode=0&goto=<?php echo $goto; ?>">Switch to graphics mode</a></small><br />
 	

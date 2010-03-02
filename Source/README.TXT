@@ -191,3 +191,16 @@ new in vl 0.3.7
 Support for .EPX files
 
 -- probably final versions before conversion to class. vv.php will become a wrapper for this.
+
+new in vb 0.1.A
+Bug fix .idx filename in cache
+
+new in vv 0.5.D
+Fix broken file type detectin. Doh!
+add ifdefined to function defn to cater for:
+
+new in vl 0.3.8
+change html <iframe to a virtual() call for textmode
+
+new in vb 0.1.B
+change html <iframe to a virtual() call for textmode

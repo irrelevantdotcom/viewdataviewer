@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.C beta
+ * @version 0.5.D beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -46,25 +46,27 @@
 
 include "GIFEncoder.class.php";
 
-function similar_file_exists($filename) {
-  if ($filename == "") return "";
-  
-  if (file_exists($filename)) {
-    return $filename;
-  }
-  $dir = dirname($filename);
-  if (!file_exists($dir)) {
-      if (($dir=similar_file_exists($dir)) == "") return "";
-  }
-  $files = glob($dir . '/*');
-  $lcaseFilename = strtolower($filename);
-  foreach($files as $file) {
-    if (strtolower($file) == $lcaseFilename) {
-      return $file;
-    }
-  }
-  return "";
-} 
+if (!function_exists('similar_file_exists')) {
+	function similar_file_exists($filename) {
+	  if ($filename == "") return "";
+	  
+	  if (file_exists($filename)) {
+	    return $filename;
+	  }
+	  $dir = dirname($filename);
+	  if (!file_exists($dir)) {
+	      if (($dir=similar_file_exists($dir)) == "") return "";
+	  }
+	  $files = glob($dir . '/*');
+	  $lcaseFilename = strtolower($filename);
+	  foreach($files as $file) {
+	    if (strtolower($file) == $lcaseFilename) {
+	      return $file;
+	    }
+	  }
+	  return "";
+	} 
+}
 
 $error = "";
 // image size in characters
@@ -233,7 +235,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				}
             } 
 		
-			if (($format & 15) == 0 || substr($text,0,3) == "JWC") {
+			if (($format & 15) == 0 && substr($text,0,3) == "JWC") {
 			    $format += 9;
 			}
 			

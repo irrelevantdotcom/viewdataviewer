@@ -1,7 +1,7 @@
 <?php 
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.7 beta!
+// Version 0.3.8 beta!
 // See README.TXT for important information.
 
 /*
@@ -158,17 +158,36 @@ if ($zoom>=0) {
 ?><td class="gallerytd" valign="top" colspan=<?php echo $maxcols; ?>><?php
 	if ($textmode == 0) {
 	    echo "<img ";
+		echo "src=\"".$baseurl."vv.php?";
+		if ($textmode) echo "longdesc=".$textmode."&";
+	    echo "format=0&gal=".$folder."&page=".$framelist[$zoom][0];
+	       if ($framelist[$zoom][1] > 0) {
+			echo "&offset=".$framelist[$zoom][1];
+	       } 
+		echo "\">";
 	} else {
+		$savedget=$_GET;
+		$_GET = array("longdesc" => $textmode,
+		"gal" => $folder,
+		"page" => $framelist[$zoom][0],
+		"offset" => $framelist[$zoom][1],
+		"format" =>0 );
+		echo "<table border=\"1\"><tr><td>";
+		virtual("/rob/temp/vv.php?");
+		echo "</td></tr></table>";
+		$_GET=$savedget;
+/*
 	    echo "<iframe width=350 height=400 SCROLLING=\"no\" ";
+		echo "src=\"".$baseurl."vv.php?";
+		if ($textmode) echo "longdesc=".$textmode."&";
+	    echo "gal=".$folder."&page=".$framelist[$zoom][0];
+	       if ($framelist[$zoom][1] > 0) {
+			echo "&offset=".$framelist[$zoom][1];
+	       } 
+		echo "\">";
+		echo "</iframe>";
+*/
 	}
-	echo "src=\"".$baseurl."vv.php?";
-	if ($textmode) echo "longdesc=".$textmode."&";
-    echo "gal=".$folder."&page=".$framelist[$zoom][0];
-       if ($framelist[$zoom][1] > 0) {
-		echo "&offset=".$framelist[$zoom][1];
-       } 
-	echo "\">";
-	if ($textmode) echo "</iframe>";
 	
 	 if (file_exists("./" . $folder . "/" . $framelist[$zoom][0] . ".txt")) {
             $text = file_get_contents("./" . $folder . "/" . $framelist[$zoom][0] . ".txt");
