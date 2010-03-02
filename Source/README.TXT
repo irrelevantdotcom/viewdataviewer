@@ -171,3 +171,23 @@ Bug fixes in $_GET passing. FALSE !== false !!!!!
 
 new in vl 0.3.5
 Bug fixes in $_GET passing. FALSE !== false !!!!!
+
+new in vv0.5.A
+Support for some files ripped from a spectrum +3 disc image
+
+new in vl 0.3.6
+More bug fixes in $_GET passing: Don't pass whole query string!
+Bug fixes in paramater passing adding start= options.  
+Jiggle parameters to be in consistant order.
+Change "no qty" flag from 99999 to 0
+
+new in vv 0.5.B
+don't keep flash-on and flash-off GIF images, only final animated one.
+
+new in VV 0.5.C
+Support for .EPX files
+
+new in vl 0.3.7
+Support for .EPX files
+
+-- probably final versions before conversion to class. vv.php will become a wrapper for this.

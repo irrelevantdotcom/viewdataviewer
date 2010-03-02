@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.9 beta
+ * @version 0.5.C beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -27,7 +27,7 @@
  * height = height in lines
 *  top = single line to place at top of page
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH) 5-Axis
-*  6 = !SVReader, 7=Axis "i" format
+*  6 = !SVReader, 7=Axis "i" format, 8 Spectrum +3 files, 9 .EPX files.
 *  add 512 for $top to overwrite top line of page
 *  add 256 for case insensitivity
  * add 128 to disable black 
@@ -232,7 +232,12 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 	                $format = 1;
 				}
             } 
-
+		
+			if (($format & 15) == 0 || substr($text,0,3) == "JWC") {
+			    $format += 9;
+			}
+			
+			
 			if (($format & 15) == 0 && strlen($text) >= 5120 ) {
 				if ( substr($text,4096,2) == chr(0)."F" 
 				    && substr($text,4098,10) == substr($text,16,10)
@@ -250,7 +255,11 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 			    
 			}
 
-
+			if (($format & 15) == 0 && substr($text,0,8) == "PLUS3DOS") {
+			    // Ripped from a spectrum disc. assume it's a viewer file
+				// as I don't have anything else yet!
+				$format +=8;
+			}
 
 
 			if (($format & 15) == 0 && ($text[21] == "Y" || $text[21] == "N") &&
@@ -258,9 +267,21 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 			) {  // !SVreader
 			    $format += 6;
 			}
-		  if ((($format & 15) == 5 || ($format & 15) == 7) && $offset == 0) {
-		      $offset = 4096;
-		  }
+			
+	// skip over any file headers (not frame headers)	
+		
+			if ((($format & 15) == 5 || ($format & 15) == 7) && $offset == 0) {
+			    $offset = 4096;
+			}
+			if (($format & 15)==8 && $offset == 0) {
+			    $offset = 128;
+			}		 	 
+			if (($format & 15) == 9 && $offset == 0) {
+			    $offset = 4;
+			}
+
+		// jump to offset
+		 
             if ($offset > strlen($text)) {
                 $offset = 0;
                 $cachepage = $folder . "_" . $page;
@@ -270,6 +291,8 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             } else {
                 $text = substr($text, $offset);
             } 
+			
+			
 			if (($format & 15) == 0) {
 			    if (strpos(substr($text,0,920),chr(13).chr(10)) !== FALSE ||
 				strpos(substr($text,0,920),chr(10).chr(13)) !== FALSE ) {
@@ -310,6 +333,8 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                     $format += 4; // ABZTtxt
                 } 
             } 
+			
+			// strip frame headers and trim to page length.
             if (($format & 15) == 2) {
                 $text = substr($text, 104, 920);
                 $height = 24; // 23+1 blank. 
@@ -330,7 +355,15 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				$text = substr($text,104,920);
 				$height = 24;
 			}
-			
+			if (($format & 15) == 8) {
+				$text = substr($text,0,960);
+				$height = 24;
+			}
+			if (($format & 15) == 9) {
+   				$text = substr($text,8,1000);
+				$height = 25;
+			}
+
 			if ($top != "") {
 			    if ($format & 512) { // overwrite top line
 			        $text = substr_replace($text,$top,0,$width);
@@ -659,6 +692,9 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				$fname .= ".gif";
                 fwrite (fopen ($fname, "wb"), $image);
             } 
+			// kill temporary files
+			foreach ($frames as $fnam) unlink($fnam);
+			
             header ('Content-type:image/gif');
             echo $image;
         } 

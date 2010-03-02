@@ -1,7 +1,7 @@
 <?php 
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.5 beta
+// Version 0.3.7 beta!
 // See README.TXT for important information.
 
 /*
@@ -35,11 +35,11 @@ if (isset($_GET['cols']) && is_numeric($_GET['cols'])) {
         $maxcols = 4; // sanity check
     } 
 } 
-$pageqty = 999999;
+$pageqty = 0;
 if (isset($_GET['qty']) && is_numeric($_GET['qty'])) {
     $pageqty = $_GET['qty'];
     if ($pageqty < 1) {
-        $pageqty = 999999; // sanity check
+        $pageqty = 0; // sanity check
     } 
 } 
 $pagestart = 0;
@@ -55,7 +55,7 @@ if (isset($_GET['zoom']) && is_numeric($_GET['zoom'])) {
     $zoom = $_GET['zoom'];
     if ($zoom < 0) {
         $zooom = -1; // sanity check
-    } 
+    } else echo "<a name=\"zoom\"></a>";
     if (isset($_GET['textmode']) && is_numeric($_GET['textmode'])) {
         $textmode = $_GET['textmode'];
         if ($textmode < 1) {
@@ -79,6 +79,28 @@ if (isset($_GET["gal"])) {
     if (preg_match('/^[a-zA-Z0-9_]{3,16}$/', $_GET['gal'])) $folder = $_GET["gal"]; 
     // else $folder = "frames";
 } 
+
+
+$restp = "";
+foreach ($_GET as $key => $value) {
+	if (isset($_GET['baseurl'])) { // implies it's embedded in a page
+	     if (stripos("zoom|textmode|layout|cols|gal|baseurl|start|qty", $key) === FALSE) {
+			  if ($restp != "") $restp .= "&";
+			  $restp .= $key . "=" . $value;
+	     } 
+	} else {
+	     if (stripos("zoom|textmode|start", $key) === FALSE) {
+			  if ($restp != "") $restp .= "&";
+	         $restp .= $key . "=" . $value;
+	     } 
+	
+	}
+} 
+
+
+
+
+
 
 $c = 0;
 /*
@@ -109,11 +131,27 @@ if (file_exists("./" . $folder . "/index.txt")) {
 $framelist = array(); //array(),array());
 foreach ($files as $dat) {
     $flen = filesize("./" . $folder . "/" . $dat);
-    if ($flen % 1024 == 0 || $flen < 1024) {
-        for ($offset = 0; $offset < $flen; $offset += 1024) {
-            $framelist[] = array($dat, $offset);
+	$test = substr(file_get_contents("./" . $folder . "/" . $dat ),0,8);
+    if ($test 	 == "PLUS3DOS") {
+        for ($offset = 128; $offset < $flen; $offset += 960) {
+			if ($flen - $offset > 500) { // lose crap at end of file
+	            $framelist[] = array($dat, $offset);
+			}
         } 
-    } 
+	} else if (substr($test,0,3) == "JWC") {
+        for ($offset = 4; $offset < $flen; $offset += 1008) {
+			if ($flen - $offset > 500) { // lose crap at end of file
+	            $framelist[] = array($dat, $offset);
+			}
+        } 
+	} else if ($flen % 1024 == 0 || $flen < 1024) {
+        for ($offset = 0; $offset < $flen; $offset += 1024) {
+			if ($flen - $offset > 500) { // lose crap at end of file
+	            $framelist[] = array($dat, $offset);
+			}
+        } 
+    }
+	
 } 
 
 if ($zoom>=0) {
@@ -166,7 +204,7 @@ if ($zoom>=0) {
 } else {
     $dispcnt = $pageqty;
     $dispnum = $pagestart;
-    while ($dispnum < count($framelist) && $dispcnt > 0) {
+    while ($dispnum < count($framelist) && ($dispcnt > 0 || $pageqty == 0)) {
         $oneframe = $framelist[$dispnum];
         // foreach ($framelist as $oneframe) {
         $dat = $oneframe[0];
@@ -205,7 +243,10 @@ if ($zoom>=0) {
             ?><td class="gallerytd" style="width:<?php echo 100 / $maxcols;
 
             ?>%;" valign="top">
- <a href="?<?php echo $_SERVER['QUERY_STRING']."&zoom=". $dispnum ; ?>" title="Full size view: &quot;<?php echo $dat; ?>&quot;">
+ <a href="?<?php
+  echo $restp;
+ if ($pageqty && $pagestart) echo "&start=".$pagestart;
+ echo "&zoom=". $dispnum ; ?>#zoom" title="Full size view: &quot;<?php echo $dat; ?>&quot;">
 
    <img src="<?php echo $baseurl; ?>vv.php?thumbnail=1&gal=<?php echo $folder;  ?>&page=<?php echo $dat;
             if ($offset > 0) {
@@ -222,7 +263,10 @@ if ($zoom>=0) {
             ?>" class="thumbnail" width="100"/>
  </a>
  <br />
-<small> <a href="?<?php echo $_SERVER['QUERY_STRING']."&zoom=". $dispnum ; ?>&textmode=2"  title="Textual view: &quot;<?php echo $dat;
+<small> <a href="?<?php
+  echo $restp;
+ if ($pageqty && $pagestart) echo "&start=".$pagestart;
+ echo"&textmode=2&zoom=". $dispnum ; ?>#zoom"  title="Textual view: &quot;<?php echo $dat;
 
             ?>&quot;">
 View as text</a></small><br />
@@ -236,7 +280,9 @@ View as text</a></small><br />
             ?><td class="gallerytd" style="width:<?php echo 50 / $maxcols;
 
             ?>%;" valign="top">
- <a href="?<?php echo $_SERVER['QUERY_STRING']."&zoom=". $dispnum ; ?>" title="Full size view: &quot;<?php echo $dat; ?>&quot;">
+ <a href="?<?php echo $restp;
+  if ($pageqty && $pagestart) echo "&start=".$pagestart;
+  echo "&zoom=". $dispnum ; ?>#zoom" title="Full size view: &quot;<?php echo $dat; ?>&quot;">
 
    <img src="<?php echo $baseurl;
 
@@ -263,7 +309,10 @@ View as text</a></small><br />
             ?>" class="thumbnail" width="200"/>
  </a>
  <br />
-<small><a href="?<?php echo $_SERVER['QUERY_STRING']."&zoom=". $dispnum ; ?>&textmode=2"  title="Textual view: &quot;<?php echo $dat;
+<small><a href="?<?php 
+ echo $restp;
+ if ($pageqty && $pagestart) echo "&start=".$pagestart;
+echo "&textmode=2&zoom=". $dispnum ; ?>#zoom"  title="Textual view: &quot;<?php echo $dat;
 
             ?>&quot;">View as text</a></small><br />
 </td><td class="gallerytd" style="width:<?php echo 50 / $maxcols;
@@ -292,19 +341,6 @@ View as text</a></small><br />
 ?></tr>
 <?php
 if (isset($_GET['qty']) || $zoom>=0) {
-    $restp = "";
-    foreach ($_GET as $key => $value) {
-		if (isset($_GET['baseurl'])) {
-	        if (stripos("zoom|textmode|layout|cols|gal|baseurl|start", $key) === FALSE) {
-	            $restp .= $key . "=" . $value . "&";
-	        } 
-		} else {
-	        if (stripos("start", $key) === FALSE) {
-	            $restp .= $key . "=" . $value . "&";
-	        } 
-		
-		}
-    } 
     $nextp = "";
     $prevp = "";
     $firstp = "";
@@ -312,31 +348,39 @@ if (isset($_GET['qty']) || $zoom>=0) {
 	$backp = "";
 
 	if ($zoom>=0) {
-		$backp = $restp."start=".$pagestart;
-		if ($textmode) $restp .= "textmode=".$textmode."&";
-	    if ($zoom + 2 < count($framelist)) {
-	        $nextp = $restp . "zoom=" . ($zoom+1) . "&start=".$pagestart;
+		$backp = $restp; 
+		if ($pageqty && $pagestart != 0) $backp .= "&start=".$pagestart;
+//		$backp .= "#zoom";
+		if ($textmode) $restp .= "&textmode=".$textmode;
+	    if ($zoom + 1 < count($framelist)) {
+	        $nextp = $restp . "&zoom=" . ($zoom+1); 
+			if ($pageqty && $pagestart != 0) $nextp .= "&start=".$pagestart;
+			$nextp .="#zoom";
 	    } 
-        $lastp = $restp ."zoom=". (count($framelist)-1). "&start=".$pagestart;
+        $lastp = $restp ."&zoom=". (count($framelist)-1);
+		if ($pageqty && $pagestart != 0) $lastp .= "&start=".$pagestart;
+		$lastp .= "#zoom";
 	    if ($zoom > 0) {
-            $prevp = $restp . "zoom=".($zoom-1). "&start=" . $pagestart;
+            $prevp = $restp . "&zoom=".($zoom-1);
+			if ($pageqty && $pagestart != 0) $prevp .= "&start=" . $pagestart;
+			$prevp .="#zoom";
 	    } 
-        $firstp = $restp . "zoom=0" . "&start=".$pagestart;
-	
+        $firstp = $restp . "&zoom=0";
+		if ($pageqty && $pagestart != 0) $firstp .= "&start=".$pagestart;
+		$firstp .="#zoom";	
 
 	} else {
-		
 	    if ($pagestart + $pageqty < count($framelist)) {
-	        $nextp = $restp . "start=" . ($pagestart + $pageqty);
-	        $lastp = $restp . "start=" . (count($framelist) - (count($framelist) % $_GET['qty']));
+	        $nextp = $restp . "&start=" . ($pagestart + $pageqty);
+	        $lastp = $restp . "&start=" . (count($framelist) - (count($framelist) % $_GET['qty']));
 	    } 
 	    if ($pagestart > 0) {
 	        if ($pagestart > $pageqty) {
-	            $prevp = $restp . "start=" . ($pagestart - $pageqty);
+	            $prevp = $restp . "&start=" . ($pagestart - $pageqty);
 	        } else {
-	            $prevp = $restp . "start=0" ;
+	            $prevp = $restp; // . "&start=0" ;
 	        } 
-	        $firstp = $restp ."start=0" ;
+	        $firstp = $restp; // ."&start=0" ;
 	    } 
 	}
 	
