@@ -126,12 +126,19 @@ if (($format & 15) == 5 || ($format & 15) == 7) {
 		echo "Please wait. Building index..";
 		$index="";
 		$data=file_get_contents($fnam,0,NULL,0,4096);
-		for ($i=16;  $i<4096; $i+=12) {
-			$id = ord($data[10+$i])+256*ord($data[11+$i]);
-			if ($id) {
-			    $index .= $id . "=" . trim(substr($data,$i,10)) . "&";
+		if (filesize($fnam)>356352) {
+			for ($j=352256; $j<filesize($fnam); $j+=352256) {
+				$data .= file_get_contents($fnam,0,NULL,$j,4096);
 			}
-			
+		}
+		for ($j=0; $j<strlen($data); $j+=4096) {
+			for ($i=16;  $i<4096; $i+=12) {
+				$id = ord($data[10+$i+$j])+256*ord($data[11+$i+$j]);
+				if ($id) {
+				    $index .= $id . "=" . trim(substr($data,$i+$j,10)) . "&";
+				}
+				
+			}
 		}
         file_put_contents("./cache/".$folder . "_" .$db.".idx",$index);
     } else {
@@ -163,15 +170,18 @@ if (($format & 15) == 5) {
 	    $format = 1;
 	} else {
 		$offset=4096+1024*$offset;
+		$offset += 4096*(int)($offset/352256);
 		$text=file_get_contents($fnam,0,NULL,$offset,1024);
 	}
 } else if (($format & 15) == 7) {
 	$offset=array_search(array_search($goto,$idx),array_keys($idx));
+
 	if ($offset===FALSE) {
 		$error =  "Sorry, the page requested, $goto, was not found in the database available. Please press BACK in your browser and try another route.";
 	    $format = 1;
 	} else {
 		$offset=4096+1024*$offset;
+		$offset += 4096*(int)($offset/352256);
 		$text=file_get_contents($fnam,0,NULL,$offset,1024);
 	    $frame = substr($goto, strlen($goto)-1);
 	    if ($frame < "z") {
@@ -219,12 +229,7 @@ if ($error != "") {
 		    $top = substr($text,104,24).chr(7).str_pad($goto,10).chr(3)."  0p";
 		}
 	}
-    ?><head>
-<title>Viewdata Page Browser</title></head>
-<body>
-
-
-<center>
+    ?><center>
 <?php
 	if (($format & 15)==5 || ($format & 15)==7) {
 		$lgoto=$db;
@@ -252,6 +257,7 @@ if ($error != "") {
 
 	$savedget=$_GET;
 	$savedText=$text;
+	$savedFormat=$format;
 	$_GET = array("longdesc" => 2,
 	"format" => $format,
 	"gal" => $lfolder,
@@ -263,7 +269,8 @@ if ($error != "") {
 	echo "</td></tr></table>";
 	$_GET=$savedget;
 	$text=$savedText;
-
+	$format=$savedFormat
+	
 /*	?>
    <iframe width=350 height=400 SCROLLING="no" 
    src="<?php echo $baseurl;?>vv.php?longdesc=2&format=<?echo $format; ?>&gal=<?php echo $lfolder; ?>&page=<?php echo $lgoto;
@@ -364,4 +371,3 @@ document.onkeypress=textsizer
 
 <br />or press a number key. For # press Enter.<br />
 </center>
-</body>

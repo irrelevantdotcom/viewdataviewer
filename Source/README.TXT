@@ -65,6 +65,7 @@ longdesc=<mode> 0(default)=graphic, 1=text, 2=<pre>text with * for graphics.
 thumbnail=<tn size> 0(default)=full size, 0<n<3 = n*100 pixel wide image.
 top=<text> optional line to insert above image (see also format b9)
 format=<option bits>
+--format b10 = always parse frame data as RAW first (cope with CR/LF!)
 --format b9 = "top" text overwrites top line in file.
 --format b8 = attempts to be case insensitive on page->filenames.
 --format b7 = disable black as a colour
@@ -204,3 +205,12 @@ change html <iframe to a virtual() call for textmode
 
 new in vb 0.1.B
 change html <iframe to a virtual() call for textmode
+
+new in vv 0.5.E
+change characters in textmode to match viewdata charset.
+
+new in vv 0.5.F
+Add format | 1024 to always parse frame data as if it were RAW
+
+new in vv 0.5.G
+Bugfix noticed in hold graphics routines due to cell attrs change in

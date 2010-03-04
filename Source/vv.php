@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  * 
- * @version 0.5.D beta
+ * @version 0.5.G beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  * 
  * 
@@ -28,7 +28,8 @@
 *  top = single line to place at top of page
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH) 5-Axis
 *  6 = !SVReader, 7=Axis "i" format, 8 Spectrum +3 files, 9 .EPX files.
-*  add 512 for $top to overwrite top line of page
+* add 1024 to always parse raw moe
+* *  add 512 for $top to overwrite top line of page
 *  add 256 for case insensitivity
  * add 128 to disable black 
  * add 64 to disable cache write
@@ -378,7 +379,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         } 
     } 
 
-	if (($format & 15) == 3 || ($format & 15)==6) {	// RAW mode
+	if (($format & 15) == 3 || ($format & 15)==6 || ($format & 1024)) {	// RAW mode
 		$rawtext = $text;
 		$text = str_repeat(" ",960);
 		$cx = 0; $cy=0;
@@ -386,6 +387,8 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         while ($tp < strlen($rawtext)) {
             $char = ord($rawtext[$tp]);
 			switch(0+$char){
+				case 0 :
+					break;
 				case 13 :
 					$cx = 0;
 					break;
@@ -460,11 +463,14 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         $doublebottom = 0;
         $nextbottom = 0;
         $cf = 7;
+		$newcf=7;
         $cb = 0;
         $flash = 0; // flashing off
+		$newflash=0;
         $double = 0; // doubleheight off
         $graphics = 0; // text mode
         $seperated = 0; // normal graphics
+		$newsep=0;
         $holdgraph = 0; // hold mode off
         $holdchar = 32; // default hold char
         $conceal = 0; 
@@ -472,6 +478,10 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         $tp = 0;
 
         while ($tp < strlen($text)) {
+			$cf=$newcf;	
+			$flash=$newflash;
+			$seperated=$newsep;
+		
             $char = ord($text[$tp]); // int!
             if ($doublebottom) { // if we're on the bottom row of a double height bit
                 $char = $prev[$cx]; // use character from previous row!
@@ -506,15 +516,15 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                 case 133:
                 case 134:
                 case 135:
-                    $cf = $char;
+                    $newcf = $char;
                     $graphics = 0;
                     $conceal = 0;
                     break;
                 case 136:		// flash on
-                    $flash = 1;
+                    $newflash = 1;
                     break;
                 case 137:		// flash off
-                    $flash = 0;
+                    $newflash = 0;
                     break;
                 case 140:		// double height off
                     $double = 0;
@@ -534,7 +544,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                 case 149:
                 case 150:
                 case 151:
-                    $cf = $char-16;
+                    $newcf = $char-16;
                     $graphics = 1;
                     $conceal = 0;
                     break;
@@ -542,10 +552,10 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                     $conceal = 1;
                     break;
                 case 153:		// contiguous grapohics
-                    $seperated = 0;
+                    $newsep = 0;
                     break;
                 case 154:		// seperated graphics
-                    $seperated = 1;
+                    $newsep = 1;
                     break;
                 case 156:		// black background
                     $cb = 0;
@@ -668,6 +678,9 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
     // display image
     if ($longdesc) {
         header("Content-type: text/html");
+		$longtext = str_replace(array("#","_","[","]","{","\\","}","~"),array("&pound;","#","&laquo;","&raquo;","&frac14;","&frac12;","&frac34;","&divide;") , $longtext);
+
+
 	  	if ($longdesc == 2) echo "<pre>";
         echo $longtext;
 	  	if ($longdesc == 2) echo "</pre>";
