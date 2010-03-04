@@ -630,11 +630,14 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                     break;
                 } 
                 $cf = 7;
+				$newcf = 7;
                 $cb = 0;
                 $flash = 0; // flashing off
+				$newflash = 0;
                 $double = 0; // doubleheight off
                 $graphics = 0; // text mode
                 $seperated = 0; // normal graphics
+				$newsep = 0;
                 $holdgraph = 0; // hold mode off
                 $holdchar = 32; // default hold char
                 $conceal = 0;
