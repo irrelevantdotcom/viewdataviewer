@@ -1,8 +1,12 @@
-<?php 
+<?php
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.8 beta!
+// Version 0.3.9 beta!
 // See README.TXT for important information.
+
+vl_main();
+
+function vl_main(){
 
 /*
 ?>
@@ -16,7 +20,7 @@
 */?>
           <div class="gallerynumbermenu">
             <table class="gallerytable" summary="gallery table">
-<tr><?php 
+<tr><?php
 // echo $_SERVER['QUERY_STRING'];
 $layout = 0; // 0=horizontal, 1=vertical
 $maxcols = 4; // number of pictures across
@@ -24,31 +28,31 @@ if (isset($_GET['layout']) && is_numeric($_GET['layout'])) {
     $layout = $_GET['layout'];
     if ($layout < 0 || $layout > 1) {
         $layout = 0; // sanity check
-    } 
+    }
     if ($layout == 1) {
         $maxcols = 1; // default for vertical
-    } 
-} 
+    }
+}
 if (isset($_GET['cols']) && is_numeric($_GET['cols'])) {
     $maxcols = $_GET['cols'];
     if ($maxcols < 1 || $maxcols > 255) {
         $maxcols = 4; // sanity check
-    } 
-} 
+    }
+}
 $pageqty = 0;
 if (isset($_GET['qty']) && is_numeric($_GET['qty'])) {
     $pageqty = $_GET['qty'];
     if ($pageqty < 1) {
         $pageqty = 0; // sanity check
-    } 
-} 
+    }
+}
 $pagestart = 0;
 if (isset($_GET['start']) && is_numeric($_GET['start'])) {
     $pagestart = $_GET['start'];
     if ($pagestart < 1) {
         $pagestart = 0; // sanity check
-    } 
-} 
+    }
+}
 $zoom = -1;
 $textmode = 0;
 if (isset($_GET['zoom']) && is_numeric($_GET['zoom'])) {
@@ -60,9 +64,9 @@ if (isset($_GET['zoom']) && is_numeric($_GET['zoom'])) {
         $textmode = $_GET['textmode'];
         if ($textmode < 1) {
             $textmode = 0; // sanity check
-        } 
-    } 
-} 
+        }
+    }
+}
 
 $baseurl = "";
 if (isset($_GET['baseurl'])) {
@@ -70,15 +74,15 @@ if (isset($_GET['baseurl'])) {
     if (strlen($baseurl)) {
         if ($baseurl[strlen($baseurl)-1] != "/") {
             $baseurl .= "/";
-        } 
-    } 
-} 
+        }
+    }
+}
 
 $folder = "frames";
 if (isset($_GET["gal"])) {
-    if (preg_match('/^[a-zA-Z0-9_]{3,16}$/', $_GET['gal'])) $folder = $_GET["gal"]; 
+    if (preg_match('/^[a-zA-Z0-9_]{3,16}$/', $_GET['gal'])) $folder = $_GET["gal"];
     // else $folder = "frames";
-} 
+}
 
 
 $restp = "";
@@ -87,15 +91,15 @@ foreach ($_GET as $key => $value) {
 	     if (stripos("zoom|textmode|layout|cols|gal|baseurl|start|qty", $key) === FALSE) {
 			  if ($restp != "") $restp .= "&";
 			  $restp .= $key . "=" . $value;
-	     } 
+	     }
 	} else {
 	     if (stripos("zoom|textmode|start", $key) === FALSE) {
 			  if ($restp != "") $restp .= "&";
 	         $restp .= $key . "=" . $value;
-	     } 
-	
+	     }
+
 	}
-} 
+}
 
 
 
@@ -112,10 +116,10 @@ if ($dh = opendir ("./" . $folder . "/")) {
     while (FALSE !== ($dat = readdir ($dh))) { // for each file
         if (substr($dat, 0, 1) != "." && substr($dat, strlen($dat)-4, 4) != ".txt") {
             $files[] = $dat;
-        } 
-    } 
+        }
+    }
     closedir ($dh);
-} 
+}
 sort ($files, SORT_STRING);
 
 if (file_exists("./" . $folder . "/index.txt")) {
@@ -123,10 +127,10 @@ if (file_exists("./" . $folder . "/index.txt")) {
     foreach(file("./" . $folder . "/index.txt") as $line => $content) {
         // $index[$line] = explode(':',$content,2);
         $stuff = explode (':', $content, 3);
-        $index[$stuff[0]] = array($stuff[1], $stuff[2]); 
+        $index[$stuff[0]] = array($stuff[1], $stuff[2]);
         // print_r($index);
-    } 
-} 
+    }
+}
 
 $framelist = array(); //array(),array());
 foreach ($files as $dat) {
@@ -137,22 +141,23 @@ foreach ($files as $dat) {
 			if ($flen - $offset > 500) { // lose crap at end of file
 	            $framelist[] = array($dat, $offset);
 			}
-        } 
+        }
 	} else if (substr($test,0,3) == "JWC") {
         for ($offset = 4; $offset < $flen; $offset += 1008) {
 			if ($flen - $offset > 500) { // lose crap at end of file
 	            $framelist[] = array($dat, $offset);
 			}
-        } 
+
+        }
 	} else if ($flen % 1024 == 0 || $flen < 1024) {
         for ($offset = 0; $offset < $flen; $offset += 1024) {
 			if ($flen - $offset > 500) { // lose crap at end of file
 	            $framelist[] = array($dat, $offset);
 			}
-        } 
+        }
     }
-	
-} 
+
+}
 
 if ($zoom>=0) {
 ?><td class="gallerytd" valign="top" colspan=<?php echo $maxcols; ?>><?php
@@ -163,7 +168,7 @@ if ($zoom>=0) {
 	    echo "format=0&gal=".$folder."&page=".$framelist[$zoom][0];
 	       if ($framelist[$zoom][1] > 0) {
 			echo "&offset=".$framelist[$zoom][1];
-	       } 
+	       }
 		echo "\">";
 	} else {
 		$savedget=$_GET;
@@ -173,7 +178,9 @@ if ($zoom>=0) {
 		"offset" => $framelist[$zoom][1],
 		"format" =>0 );
 		echo "<table border=\"1\"><tr><td>";
-		virtual("/rob/temp/vv.php?");
+		//virtual ($baseurl."/vv.php?");
+		include "vv.php";
+
 		echo "</td></tr></table>";
 		$_GET=$savedget;
 /*
@@ -183,12 +190,12 @@ if ($zoom>=0) {
 	    echo "gal=".$folder."&page=".$framelist[$zoom][0];
 	       if ($framelist[$zoom][1] > 0) {
 			echo "&offset=".$framelist[$zoom][1];
-	       } 
+	       }
 		echo "\">";
 		echo "</iframe>";
 */
 	}
-	
+
 	 if (file_exists("./" . $folder . "/" . $framelist[$zoom][0] . ".txt")) {
             $text = file_get_contents("./" . $folder . "/" . $framelist[$zoom][0] . ".txt");
             $cr = stripos($text, "\n");
@@ -198,11 +205,11 @@ if ($zoom>=0) {
             } else {
                 $title = $text;
                 $text = "";
-            } 
+            }
         } else {
             $title = "";
             $text = "";
-        } 
+        }
 
         if ($title == "") {
             if (isset($index[$framelist[$zoom][0] . "+" . $framelist[$zoom][1]])) {
@@ -211,9 +218,9 @@ if ($zoom>=0) {
             } else if (isset($index[$framelist[$zoom][0]])) {
                 $title = $index[$framelist[$zoom][0]][0];
                 $text = $index[$framelist[$zoom][0]][1];
-            } 
-        } 
-	
+            }
+        }
+
 	if ($title != "") echo "<br />[ueber2|".$title."]";
 	if ($text != "") echo "<br />".$text;
 ?></td></tr>
@@ -227,7 +234,7 @@ if ($zoom>=0) {
         $oneframe = $framelist[$dispnum];
         // foreach ($framelist as $oneframe) {
         $dat = $oneframe[0];
-        $offset = $oneframe[1]; 
+        $offset = $oneframe[1];
         // $flen = filesize("./" . $folder . "/" . $dat);
         // if ($flen % 1024 == 0 || $flen < 1024) {
         // for ($offset = 0; $offset < $flen; $offset += 1024) {
@@ -241,11 +248,11 @@ if ($zoom>=0) {
             } else {
                 $title = $text;
                 $text = "";
-            } 
+            }
         } else {
             $title = "";
             $text = "";
-        } 
+        }
 
         if ($title == "") {
             if (isset($index[$dat . "+" . $offset])) {
@@ -254,8 +261,8 @@ if ($zoom>=0) {
             } else if (isset($index[$dat])) {
                 $title = $index[$dat][0];
                 $text = $index[$dat][1];
-            } 
-        } 
+            }
+        }
 
         if ($layout == 0) {
 
@@ -271,14 +278,14 @@ if ($zoom>=0) {
             if ($offset > 0) {
 
                 ?>&offset=<?php echo $offset;
-            } 
+            }
 
             ?>" alt="<?php echo $dat;
 
             ?>" longdesc="<?php echo $baseurl; ?>vv.php?longdesc=1&gal=<?php echo $folder; ?>&page=<?php echo $dat;
             if ($offset > 0) {
 			 ?>&offset=<?php echo $offset;
-            } 
+            }
             ?>" class="thumbnail" width="100"/>
  </a>
  <br />
@@ -311,7 +318,7 @@ View as text</a></small><br />
             if ($offset > 0) {
 
                 ?>&offset=<?php echo $offset;
-            } 
+            }
 
             ?>" alt="<?php echo $dat;
 
@@ -323,15 +330,16 @@ View as text</a></small><br />
             if ($offset > 0) {
 
                 ?>&offset=<?php echo $offset;
-            } 
+            }
 
             ?>" class="thumbnail" width="200"/>
  </a>
  <br />
-<small><a href="?<?php 
+<small><a href="?<?php
  echo $restp;
  if ($pageqty && $pagestart) echo "&start=".$pagestart;
 echo "&textmode=2&zoom=". $dispnum ; ?>#zoom"  title="Textual view: &quot;<?php echo $dat;
+
 
             ?>&quot;">View as text</a></small><br />
 </td><td class="gallerytd" style="width:<?php echo 50 / $maxcols;
@@ -343,19 +351,19 @@ echo "&textmode=2&zoom=". $dispnum ; ?>#zoom"  title="Textual view: &quot;<?php 
             ?>
 </td><?php
 
-        } 
+        }
 
         $c++;
         if ($c >= $maxcols) {
             echo "</tr><tr>";
             $c = 0;
-        } 
+        }
         // }
         // }
         $dispcnt--;
-        $dispnum++; 
-    } 
-} 
+        $dispnum++;
+    }
+}
 
 ?></tr>
 <?php
@@ -367,15 +375,15 @@ if (isset($_GET['qty']) || $zoom>=0) {
 	$backp = "";
 
 	if ($zoom>=0) {
-		$backp = $restp; 
+		$backp = $restp;
 		if ($pageqty && $pagestart != 0) $backp .= "&start=".$pagestart;
 //		$backp .= "#zoom";
 		if ($textmode) $restp .= "&textmode=".$textmode;
 	    if ($zoom + 1 < count($framelist)) {
-	        $nextp = $restp . "&zoom=" . ($zoom+1); 
+	        $nextp = $restp . "&zoom=" . ($zoom+1);
 			if ($pageqty && $pagestart != 0) $nextp .= "&start=".$pagestart;
 			$nextp .="#zoom";
-	    } 
+	    }
         $lastp = $restp ."&zoom=". (count($framelist)-1);
 		if ($pageqty && $pagestart != 0) $lastp .= "&start=".$pagestart;
 		$lastp .= "#zoom";
@@ -383,26 +391,26 @@ if (isset($_GET['qty']) || $zoom>=0) {
             $prevp = $restp . "&zoom=".($zoom-1);
 			if ($pageqty && $pagestart != 0) $prevp .= "&start=" . $pagestart;
 			$prevp .="#zoom";
-	    } 
+	    }
         $firstp = $restp . "&zoom=0";
 		if ($pageqty && $pagestart != 0) $firstp .= "&start=".$pagestart;
-		$firstp .="#zoom";	
+		$firstp .="#zoom";
 
 	} else {
 	    if ($pagestart + $pageqty < count($framelist)) {
 	        $nextp = $restp . "&start=" . ($pagestart + $pageqty);
 	        $lastp = $restp . "&start=" . (count($framelist) - (count($framelist) % $_GET['qty']));
-	    } 
+	    }
 	    if ($pagestart > 0) {
 	        if ($pagestart > $pageqty) {
 	            $prevp = $restp . "&start=" . ($pagestart - $pageqty);
 	        } else {
 	            $prevp = $restp; // . "&start=0" ;
-	        } 
+	        }
 	        $firstp = $restp; // ."&start=0" ;
-	    } 
+	    }
 	}
-	
+
     ?><tr><td class="gallerytd" valign="top" colspan=<?php echo $maxcols;
     ?> ><?php
     if ($firstp != "") echo "<a href=\"?" . $firstp . "\">";
@@ -411,7 +419,7 @@ if (isset($_GET['qty']) || $zoom>=0) {
     if ($prevp != "") echo "<a href=\"?" . $prevp . "\">";
     echo "[Previous] ";
     if ($prevp != "") echo "</a>";
-	
+
 	if ($backp != "") echo "<a href=\"?".$backp."\">[Index]</a> ";
 
     if ($nextp != "") echo "<a href=\"?" . $nextp . "\">";
@@ -423,7 +431,7 @@ if (isset($_GET['qty']) || $zoom>=0) {
 
     ?></td></tr>
 <?php
-} 
+}
 
 ?>
 
@@ -431,8 +439,9 @@ if (isset($_GET['qty']) || $zoom>=0) {
 </table>
           </div>
 		  <?php
-/*		  
+ }
+/*
 		  <br />
 </div>
 </body>
-* */?>
+   * */?>

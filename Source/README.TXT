@@ -46,7 +46,7 @@ GIFEncoder.class.php - Animated gif encoder (see comments for author)
 fntfilecreator.bbc - program to create required GDF font files.
 
 Suitable fonts are included in the fonts directory.  You may co-locate these
-alongside vv.php, or leave them in the directory and adjust the references 
+alongside vv.php, or leave them in the directory and adjust the references
 within vv.php to the correct path.
 
 Please ensure you create a folder 'cache' in the same folder as vv.php
@@ -90,7 +90,7 @@ a title (line 1) and description (rest of lines).  The title is shown under
 the thumbnail for horizontal view, and both are shown alongside it for
 vertical view.
 
-If a file "index.txt" is found in the gallery folder, then it is used to 
+If a file "index.txt" is found in the gallery folder, then it is used to
 source titles and descriptions for any files without their own .txt
 line format is
 filename:title:description
@@ -137,7 +137,7 @@ add javascript to allow keypress selection of routes.
 
 new in vl 0.3.1
 tinker with layout and css support. only relevant for own use.
-add index.txt file support. 
+add index.txt file support.
 add baseurl option. Prefix all URLs in output with specified string.
 
 new in vl 0.3.2
@@ -178,7 +178,7 @@ Support for some files ripped from a spectrum +3 disc image
 
 new in vl 0.3.6
 More bug fixes in $_GET passing: Don't pass whole query string!
-Bug fixes in paramater passing adding start= options.  
+Bug fixes in paramater passing adding start= options.
 Jiggle parameters to be in consistant order.
 Change "no qty" flag from 99999 to 0
 
@@ -214,3 +214,10 @@ Add format | 1024 to always parse frame data as if it were RAW
 
 new in vv 0.5.G
 Bugfix noticed in hold graphics routines due to cell attrs change in
+
+new in vv 0.5.H
+More bugfixing in hold graphics - holds seperated status now.
+
+new in vl 0.3.9
+change virtual() to include!  Other minor tinkering to cope with being
+itself being included within existing site content.
