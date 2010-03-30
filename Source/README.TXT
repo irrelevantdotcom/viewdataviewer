@@ -221,3 +221,13 @@ More bugfixing in hold graphics - holds seperated status now.
 new in vl 0.3.9
 change virtual() to include!  Other minor tinkering to cope with being
 itself being included within existing site content.
+
+new in vl 0.3.A
+include botcheck.php to force textmote for robots.
+
+new in vb 0.1.C
+include botcheck.php to force textmote for robots.
+change virtual() to include!
+
+botcheck.php is basically code from http://www.nes-emulator.com/x_bot.php
+turned into a simple function.

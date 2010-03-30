@@ -2,18 +2,20 @@
 
 /**
  * Simple Viewdata Browser
- * 
- * @version 0.1.B 
+ *
+ * @version 0.1.C
  * @copyright 2010 Rob O'Donnell
  */
 
-/// Configuration 
+/// Configuration
+
+include "botcheck.php";
 
 $folder = "frames";
 $db = "";
 $urf="1a";
 $ipheader = chr(5)."The Gnome At Home";
-$format=786; 
+$format=786;
 /*/
 $folder = "frames";
 $db = "VXFRAMES.MAS";
@@ -21,7 +23,7 @@ $urf=4;
 $ipheader="";
 $format=5;
 /*/
-/// 
+///
 
 if (isset($_GET['format'])) {
     if (is_numeric($_GET['format'])) $format=$_GET['format'];
@@ -47,31 +49,32 @@ if (isset($_GET['baseurl'])) {
     $baseurl = $_GET['baseurl'];
     if (strlen($baseurl)) {
         if ($baseurl[strlen($baseurl)-1] != "/") {
+
             $baseurl .= "/";
-        } 
-    } 
-} 
+        }
+    }
+}
 $restp = "";
 foreach ($_GET as $key => $value) {
 	if (isset($_GET['baseurl'])) {
 	    if (stripos("format|urf|db|ip|baseurl|goto|mode|gal", $key) === FALSE) {
 	        $restp .= $key . "=" . $value . "&";
-	    } 
+	    }
 	} else {
 	    if (stripos("goto|mode", $key) === FALSE) {
 	        $restp .= $key . "=" . $value . "&";
-	    } 
-	
+	    }
+
 	}
-	
-} 
+
+}
 
 
- 
- 
+
+
 function similar_file_exists($filename) {
   if ($filename == "") return "";
-  
+
   if (file_exists($filename)) {
     return $filename;
   }
@@ -87,9 +90,9 @@ function similar_file_exists($filename) {
     }
   }
   return "";
-} 
- 
- 
+}
+
+
 
 $goto = "";
 if (isset($_GET["goto"])) {
@@ -114,9 +117,9 @@ if (($format & 15) == 5 || ($format & 15) == 7) {
 	if ($db == "") {
 	    $db = $folder;
 		$folder = "";
-		$fnam="./" . $db;	
+		$fnam="./" . $db;
 	} else {
-		$fnam="./" . $folder . "/" . $db;	
+		$fnam="./" . $folder . "/" . $db;
 	}
     if (!file_exists("./cache/".$folder . "_" .$db.".idx")) {
 		if (!file_exists($fnam)) {
@@ -137,7 +140,7 @@ if (($format & 15) == 5 || ($format & 15) == 7) {
 				if ($id) {
 				    $index .= $id . "=" . trim(substr($data,$i+$j,10)) . "&";
 				}
-				
+
 			}
 		}
         file_put_contents("./cache/".$folder . "_" .$db.".idx",$index);
@@ -146,7 +149,7 @@ if (($format & 15) == 5 || ($format & 15) == 7) {
 	}
 
 	parse_str($index,$idx);
-	
+
 } else { // gnome format
 	if ($folder == "") {
 	    $fnam="./" . str_replace(".","/",$goto);
@@ -161,7 +164,7 @@ if (isset($_GET["mode"])) {
     if (is_numeric($_GET["mode"])) $mode = $_GET["mode"];
     else $error = "Invalid mode";
     if ($mode < 0 || $mode > 1) $mode = 0;
-} 
+}
 
 if (($format & 15) == 5) {
     $offset=array_search($goto,array_keys($idx));
@@ -210,12 +213,12 @@ if (($format & 15) == 5) {
 				}
 		    } else {
 		        $hashroute = "";
-		    } 
+		    }
 	    } else {
 	        $error =  "Sorry, the page requested, $goto, was not found in the database available. Please press BACK in your browser and try another route.";
 	        $format = 1;
-	    } 
-	} 
+	    }
+	}
 }
 if ($error != "") {
     echo $error;
@@ -238,14 +241,14 @@ if ($error != "") {
 		$lgoto = $goto;
 		$lfolder = $folder;
 	}
-	
 
-	if ($mode == 0) { 
-?>	    
+
+	if (botcheck()==0 && $mode == 0) {
+?>
    <img src="<?php echo $baseurl;?>vv.php?format=<?echo $format; ?>&gal=<?php echo $lfolder;?>&page=<?php echo $lgoto;
     if ($offset > 0) {
         ?>&offset=<?php echo $offset;
-    } ?><?php if ($top != "") echo "&top=".htmlentities($top); ?>" alt="<?php echo $lgoto; ?>" 
+    } ?><?php if ($top != "") echo "&top=".htmlentities($top); ?>" alt="<?php echo $lgoto; ?>"
 	longdesc="<?php echo $baseurl;?>vv.php?format=<?echo $format; ?>&longdesc=1&gal=<?php echo $lfolder;?>&page=<?php echo $lgoto;
     if ($offset > 0) {
         ?>&offset=<?php echo $offset;
@@ -265,14 +268,16 @@ if ($error != "") {
 	"offset" => $offset,
 	"top" => $top);
 	echo "<table border=\"1\"><tr><td>";
-	virtual("vv.php?");
+	//virtual("vv.php?");
+	include "vv.php";
+
 	echo "</td></tr></table>";
 	$_GET=$savedget;
 	$text=$savedText;
 	$format=$savedFormat
-	
+
 /*	?>
-   <iframe width=350 height=400 SCROLLING="no" 
+   <iframe width=350 height=400 SCROLLING="no"
    src="<?php echo $baseurl;?>vv.php?longdesc=2&format=<?echo $format; ?>&gal=<?php echo $lfolder; ?>&page=<?php echo $lgoto;
     if ($offset > 0) {
         ?>&offset=<?php echo $offset;
@@ -281,10 +286,10 @@ if ($error != "") {
 ?>
 <br>
 <small><a href="?<?php echo $restp;?>mode=0&goto=<?php echo $goto; ?>">Switch to graphics mode</a></small><br />
-	
+
 	<?php
 	}
-	
+
 	$routestuff="";
 ?>
 <br>
@@ -311,27 +316,27 @@ var actualkey=String.fromCharCode(unicode)
 			$route="";
 			for ($j=0;$j<5;$j++)
 				 $route .= str_pad(dechex(ord($text[34+$j+5*($i % 10)])),2,"0",STR_PAD_LEFT);
-				 
-	        $route = 0+$route; // 800FFFFFFF -> 800 
+
+	        $route = 0+$route; // 800FFFFFFF -> 800
 			if ($route == 0) $route = "";
 			else $route ="{$route}a";
 	    }
         if ($route != "") {
             $routestuff .= '<a href="?' . $restp . 'mode=' . $mode . '&goto=' . $route . '" id="link' . ($i % 10) . '">';
-			
+
 			echo 'if (actualkey=="' . ($i % 10) . '")
 location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '"
 
 ';
 
-        } 
+        }
         $routestuff .= "[" . ($i % 10) . "]";
         if ($route != "") {
             $routestuff .= "</a>";
         }
 		$routestuff .= " ";
-    } 
-	if (($format & 15) == 2 || ($format & 15) == 6 
+    }
+	if (($format & 15) == 2 || ($format & 15) == 6
 		|| ($format & 15) == 7) {
 /*	    $route = substr($goto, 0, strlen($goto)-1);
 	    $frame = substr($goto, strlen($goto)-1);
@@ -346,18 +351,18 @@ location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '"
 	    $route = ord($text[62])+256*ord($text[63]);
 		if ($route == 0) $route = "";
 	}
-	
+
     if ($route != "") {
         $routestuff .= '<a href="?' . $restp . 'mode=' . $mode . '&goto=' . $route . '" id="linkHash">';
 			echo 'if (unicode==13)
 location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '"
 
 ';
-    } 
+    }
     $routestuff .= "[#] ";
     if ($route != "") {
         $routestuff .= "</a>";
-    } 
+    }
 ?>
 }
 document.onkeypress=textsizer
@@ -365,7 +370,7 @@ document.onkeypress=textsizer
 <?php
 	echo $routestuff;
 
-} 
+}
 
 ?>
 

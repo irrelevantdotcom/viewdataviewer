@@ -1,13 +1,16 @@
 <?php
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.9 beta!
+// Version 0.3.A beta!
 // See README.TXT for important information.
+
+
 
 vl_main();
 
 function vl_main(){
 
+include "botcheck.php";
 /*
 ?>
 <head>
@@ -60,7 +63,10 @@ if (isset($_GET['zoom']) && is_numeric($_GET['zoom'])) {
     if ($zoom < 0) {
         $zooom = -1; // sanity check
     } else echo "<a name=\"zoom\"></a>";
-    if (isset($_GET['textmode']) && is_numeric($_GET['textmode'])) {
+
+	if (botcheck()) {
+		$textmode = 2;
+	} else if (isset($_GET['textmode']) && is_numeric($_GET['textmode'])) {
         $textmode = $_GET['textmode'];
         if ($textmode < 1) {
             $textmode = 0; // sanity check
@@ -164,7 +170,7 @@ if ($zoom>=0) {
 	if ($textmode == 0) {
 	    echo "<img ";
 		echo "src=\"".$baseurl."vv.php?";
-		if ($textmode) echo "longdesc=".$textmode."&";
+//		if ($textmode) echo "longdesc=".$textmode."&";
 	    echo "format=0&gal=".$folder."&page=".$framelist[$zoom][0];
 	       if ($framelist[$zoom][1] > 0) {
 			echo "&offset=".$framelist[$zoom][1];
