@@ -1,7 +1,7 @@
 <?php
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.A beta!
+// Version 0.3.C beta!
 // See README.TXT for important information.
 
 
@@ -89,12 +89,25 @@ if (isset($_GET["gal"])) {
     if (preg_match('/^[a-zA-Z0-9_]{3,16}$/', $_GET['gal'])) $folder = $_GET["gal"];
     // else $folder = "frames";
 }
+$cache = "cache";
+if (isset($_GET["cache"])) {
+	if (preg_match('/^[a-zA-Z0-9_]{3,16}$/', $_GET['cache'])) $cache = $_GET["cache"];
+}
 
+$framesize = 1024;
+$height = 0;
+if (isset($_GET['framesize']) && is_numeric($_GET['framesize'])) {
+	$framesize = $_GET['framesize'];
+	if ($framesize < 0 || $framesize > 1024) {
+		$framesize = 1024; // sanity check
+	}
+	$height = $framesize / 40;
+}
 
 $restp = "";
 foreach ($_GET as $key => $value) {
 	if (isset($_GET['baseurl'])) { // implies it's embedded in a page
-	     if (stripos("zoom|textmode|layout|cols|gal|baseurl|start|qty", $key) === FALSE) {
+	     if (stripos("zoom|textmode|layout|cols|gal|baseurl|start|qty|framesize|cache", $key) === FALSE) {
 			  if ($restp != "") $restp .= "&";
 			  $restp .= $key . "=" . $value;
 	     }
@@ -145,22 +158,33 @@ foreach ($files as $dat) {
     if ($test 	 == "PLUS3DOS") {
         for ($offset = 128; $offset < $flen; $offset += 960) {
 			if ($flen - $offset > 500) { // lose crap at end of file
-	            $framelist[] = array($dat, $offset);
+	            $framelist[] = array($dat, $offset, 960);
 			}
         }
 	} else if (substr($test,0,3) == "JWC") {
         for ($offset = 4; $offset < $flen; $offset += 1008) {
 			if ($flen - $offset > 500) { // lose crap at end of file
-	            $framelist[] = array($dat, $offset);
+	            $framelist[] = array($dat, $offset, 960);
 			}
 
         }
-	} else if ($flen % 1024 == 0 || $flen < 1024) {
-        for ($offset = 0; $offset < $flen; $offset += 1024) {
+	} else if (isset($_GET["framesize"])) {
+		for ($offset = 0; $offset < $flen; $offset += $framesize) {
 			if ($flen - $offset > 500) { // lose crap at end of file
-	            $framelist[] = array($dat, $offset);
+				$framelist[] = array($dat, $offset, $framesize);
 			}
-        }
+		}
+	} else {
+		foreach (array(960,1024,1000) as $framesize) {
+		 	if (($flen % $mod) == 0) {
+		        for ($offset = 0; $offset < $flen; $offset += $framesize) {
+					if ($flen - $offset > 500) { // lose crap at end of file
+			            $framelist[] = array($dat, $offset, $framesize);
+					}
+		        }
+		 		break;
+		 	}
+		}
     }
 
 }
@@ -175,6 +199,7 @@ if ($zoom>=0) {
 	       if ($framelist[$zoom][1] > 0) {
 			echo "&offset=".$framelist[$zoom][1];
 	       }
+		echo "&height=".$framelist[$zoom][2]/40;
 		echo "\">";
 	} else {
 		$savedget=$_GET;
@@ -182,6 +207,7 @@ if ($zoom>=0) {
 		"gal" => $folder,
 		"page" => $framelist[$zoom][0],
 		"offset" => $framelist[$zoom][1],
+		"height" => $framelist[$zoom][2] / 40,
 		"format" =>0 );
 		echo "<table border=\"1\"><tr><td>";
 		//virtual ($baseurl."/vv.php?");
@@ -241,6 +267,7 @@ if ($zoom>=0) {
         // foreach ($framelist as $oneframe) {
         $dat = $oneframe[0];
         $offset = $oneframe[1];
+    	$height = $oneframe[2] / 40;
         // $flen = filesize("./" . $folder . "/" . $dat);
         // if ($flen % 1024 == 0 || $flen < 1024) {
         // for ($offset = 0; $offset < $flen; $offset += 1024) {
@@ -259,6 +286,15 @@ if ($zoom>=0) {
             $title = "";
             $text = "";
         }
+
+		$cachepage = $folder . "_" . $dat;
+		if ($offset>0) $cachepage = $folder . "_" . $dat . "+" . $offset;
+		if ($layout == 0) { // horizontal
+			$cachepage .= "_thumb100"; // 100px wide thumbnail. adjust as necessary
+		} else {			// vertical
+			$cachepage .= "_thumb200"; // 200px wide thumbnail. adjust as necessary
+		}
+
 
         if ($title == "") {
             if (isset($index[$dat . "+" . $offset])) {
@@ -280,12 +316,22 @@ if ($zoom>=0) {
  if ($pageqty && $pagestart) echo "&start=".$pagestart;
  echo "&zoom=". $dispnum ; ?>#zoom" title="Full size view: &quot;<?php echo $dat; ?>&quot;">
 
-   <img src="<?php echo $baseurl; ?>vv.php?thumbnail=1&gal=<?php echo $folder;  ?>&page=<?php echo $dat;
+   <img src="<?php
+
+   if (file_exists($cache."/".$cachepage.".gif")) {
+   		echo $cache."/".$cachepage.".gif";
+   } elseif (file_exists($cache."/".$cachepage)) {
+   		echo $cache."/".$cachepage;
+   } else {
+
+
+    	echo $baseurl; ?>vv.php?thumbnail=1&gal=<?php echo $folder;  ?>&page=<?php echo $dat;
             if ($offset > 0) {
 
                 ?>&offset=<?php echo $offset;
             }
-
+			?>&height=<?php echo $height;
+}
             ?>" alt="<?php echo $dat;
 
             ?>" longdesc="<?php echo $baseurl; ?>vv.php?longdesc=1&gal=<?php echo $folder; ?>&page=<?php echo $dat;
@@ -316,7 +362,14 @@ View as text</a></small><br />
   if ($pageqty && $pagestart) echo "&start=".$pagestart;
   echo "&zoom=". $dispnum ; ?>#zoom" title="Full size view: &quot;<?php echo $dat; ?>&quot;">
 
-   <img src="<?php echo $baseurl;
+   <img src="<?php
+   if (file_exists($cache."/".$cachepage.".gif")) {
+   		echo $cache."/".$cachepage.".gif";
+   } elseif (file_exists($cache."/".$cachepage)) {
+   		echo $cache."/".$cachepage;
+   } else {
+
+   		echo $baseurl;
 
             ?>vv.php?thumbnail=2&gal=<?php echo $folder;
 
@@ -324,8 +377,9 @@ View as text</a></small><br />
             if ($offset > 0) {
 
                 ?>&offset=<?php echo $offset;
-            }
-
+			}
+			?>&height=<?php echo $height;
+	}
             ?>" alt="<?php echo $dat;
 
             ?>" longdesc="<?php echo $baseurl;
@@ -344,6 +398,7 @@ View as text</a></small><br />
 <small><a href="?<?php
  echo $restp;
  if ($pageqty && $pagestart) echo "&start=".$pagestart;
+
 echo "&textmode=2&zoom=". $dispnum ; ?>#zoom"  title="Textual view: &quot;<?php echo $dat;
 
 

@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  *
- * @version 0.5.H beta
+ * @version 0.5.J beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  *
  *
@@ -141,7 +141,9 @@ if (isset($_GET["page"])) {
     else $error = "Invalid page number";
 } else {
 	if (isset($_GET["text"])) {
-	    $text = substr(html_entity_decode($_GET["text"]),0,$width);
+//	    $text = substr(html_entity_decode($_GET["text"]),0,$width);
+		$text = urldecode(html_entity_decode($_GET["text"]));
+
 		$donotcache = 1;
 		$alwaysrender = 1;
 	}
@@ -263,6 +265,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 					) { // Axis "i" database
 				 	  $format +=7;
 				}
+
 
 
 
@@ -636,7 +639,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             }
 
         	// save last graphics char for hold mode
-        	if (($char > 128) && $graphics) {
+        	if (($char >= 128) && $graphics) {
         		$holdchar = $char;
         	} else $holdchar = 32;
 

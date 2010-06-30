@@ -223,7 +223,7 @@ change virtual() to include!  Other minor tinkering to cope with being
 itself being included within existing site content.
 
 new in vl 0.3.A
-include botcheck.php to force textmote for robots.
+include botcheck.php to force textmode for robots.
 
 new in vb 0.1.C
 include botcheck.php to force textmote for robots.
@@ -231,3 +231,13 @@ change virtual() to include!
 
 botcheck.php is basically code from http://www.nes-emulator.com/x_bot.php
 turned into a simple function.
+
+New in vv 0.5.J
+adjusted parsing of text= parameter.
+alowed for blank graphics char to be held..!
+
+new in vl 0.3C
+added framesize= parameter (Thanks gARetH) used on some types only
+list (not zoom) now checks for cache file & uses <img src= direct to that if found
+added cache= parameter just in case it is needed. (needs adding to vv yet)
+added automatic frame size if file is mltiple of 960,1000 or 1024 bytes
