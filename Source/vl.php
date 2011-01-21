@@ -1,12 +1,22 @@
 <?php
 // Viewdata Page Lister
 // (c)2010 Robert O'Donnell, robert@irrelevant.com
-// Version 0.3.C beta!
+// Version 0.3.H beta!
 // See README.TXT for important information.
 
 
 
 vl_main();
+
+
+function numtest($str){
+	$num=TRUE;
+	for ($i=0;$i<strlen($str);$i++) {
+		if ((ord(substr($str,$i,1))&127) >= ord("A")) $num=FALSE;
+	}
+	return $num;
+}
+
 
 function vl_main(){
 
@@ -94,6 +104,13 @@ if (isset($_GET["cache"])) {
 	if (preg_match('/^[a-zA-Z0-9_]{3,16}$/', $_GET['cache'])) $cache = $_GET["cache"];
 }
 
+$format = 0;
+if (isset($_GET['format']) && is_numeric($_GET['format'])) {
+		$format=$_GET['format'];
+}
+
+
+
 $framesize = 1024;
 $height = 0;
 if (isset($_GET['framesize']) && is_numeric($_GET['framesize'])) {
@@ -107,7 +124,7 @@ if (isset($_GET['framesize']) && is_numeric($_GET['framesize'])) {
 $restp = "";
 foreach ($_GET as $key => $value) {
 	if (isset($_GET['baseurl'])) { // implies it's embedded in a page
-	     if (stripos("zoom|textmode|layout|cols|gal|baseurl|start|qty|framesize|cache", $key) === FALSE) {
+	     if (stripos("format|zoom|textmode|layout|cols|gal|baseurl|start|qty|framesize|cache", $key) === FALSE) {
 			  if ($restp != "") $restp .= "&";
 			  $restp .= $key . "=" . $value;
 	     }
@@ -133,7 +150,12 @@ $files = array();
 
 if ($dh = opendir ("./" . $folder . "/")) {
     while (FALSE !== ($dat = readdir ($dh))) { // for each file
-        if (substr($dat, 0, 1) != "." && substr($dat, strlen($dat)-4, 4) != ".txt") {
+        if (substr($dat, 0, 1) != "."
+        	&& substr($dat, strlen($dat)-4, 4) != ".txt"
+        	&& !(substr($dat,-4,4) == ".PIC" && file_exists("./" . $folder . "/" . substr($dat,0,-4)).".IDX")
+        	&& !(substr($dat,-4,4) == ".pic" && file_exists("./" . $folder . "/" . substr($dat,0,-4)).".idx")
+
+			) {
             $files[] = $dat;
         }
     }
@@ -154,32 +176,79 @@ if (file_exists("./" . $folder . "/index.txt")) {
 $framelist = array(); //array(),array());
 foreach ($files as $dat) {
     $flen = filesize("./" . $folder . "/" . $dat);
-	$test = substr(file_get_contents("./" . $folder . "/" . $dat ),0,8);
-    if ($test 	 == "PLUS3DOS") {
+	$temp = file_get_contents("./" . $folder . "/" . $dat );
+	$test = substr($temp,0,8);
+	$test2 = substr($temp,42,7);
+	if (substr($dat,-4,4)==".IDX" && file_exists("./".$folder."/".substr($dat,0,-4).".PIC")) {
+		for ($offset = 0; $offset < $flen; $offset +=9)	{
+			$framelist[] = array("file" =>substr($dat,0,-4).".PIC",
+			"offset"=>65536*ord(substr($temp,$offset+6,1))+256*ord(substr($temp,$offset+7,1))+ord(substr($temp,$offset+8,1)),
+			"height"=>24);
+		}
+	} else if (substr($dat,-4,4)==".idx" && file_exists("./".$folder."/".substr($dat,0,-4).".pic")) {
+		for ($offset = 0; $offset < $flen; $offset +=9)	{
+			$framelist[] = array("file" =>substr($dat,0,-4).".pic",
+			"offset"=>65536*ord(substr($temp,$offset+6,1))+256*ord(substr($temp,$offset+7,1))+ord(substr($temp,$offset+8,1)),
+			"height"=>24);
+		}
+
+	} else if ($test 	 == "PLUS3DOS") {
         for ($offset = 128; $offset < $flen; $offset += 960) {
 			if ($flen - $offset > 500) { // lose crap at end of file
-	            $framelist[] = array($dat, $offset, 960);
+	            $framelist[] = array("file" => $dat, "offset" => $offset, "height" =>24);
 			}
         }
 	} else if (substr($test,0,3) == "JWC") {
         for ($offset = 4; $offset < $flen; $offset += 1008) {
 			if ($flen - $offset > 500) { // lose crap at end of file
-	            $framelist[] = array($dat, $offset, 960);
+	            $framelist[] = array("file" => $dat, "offset" => $offset, "height" =>24);
 			}
 
         }
+	} else if (numtest($test2) || isset($_GET["tt"])) {
+		$offset = 0;
+		$len = ord(substr($temp,$offset,1))+256*ord(substr($temp,$offset+1,1));
+		$blkcnt=0;
+		$fltemp = array();
+		while($offset < $flen && ord(substr($temp,$offset-($offset%2048)+2047,1))<5){
+			$ttpage=ord(substr($temp,$offset+2,1))+256*ord(substr($temp,$offset+3,1));
+			if ($len) {
+				$fltemp[] = array("file" => $dat, "offset" => $offset, "height" => -$len, "ttpage"=>$ttpage);
+				$offset += $len;
+			}
+			$blkcnt++;
+
+			if ($blkcnt > ord(substr($temp,$offset-($offset%2048)+2047,1))) {
+				$offset += 2048-($offset%2048);
+				$blkcnt=1;
+			}
+
+			$len = ord(substr($temp,$offset,1))+256*ord(substr($temp,$offset+1,1));
+
+//			if ($len > 1024) $len = 600; // sanity check...!
+		}
+
+		if (!function_exists("usortcmp")) {
+			function usortcmp($a,$b){
+				if ($a["ttpage"] == $b["ttpage"]) return 0;
+				 return ($a["ttpage"] < $b["ttpage"]) ? -1 : 1;
+			}
+		}
+		usort($fltemp,"usortcmp");
+		$framelist = array_merge($framelist,$fltemp);
+
 	} else if (isset($_GET["framesize"])) {
 		for ($offset = 0; $offset < $flen; $offset += $framesize) {
 			if ($flen - $offset > 500) { // lose crap at end of file
-				$framelist[] = array($dat, $offset, $framesize);
+				$framelist[] = array("file" => $dat, "offset" => $offset, "height" => $framesize/40);
 			}
 		}
 	} else {
-		foreach (array(960,1024,1000) as $framesize) {
-		 	if (($flen % $mod) == 0) {
-		        for ($offset = 0; $offset < $flen; $offset += $framesize) {
+		foreach (array(960,1024,1000,1090) as $fsize) {
+		 	if (abs($flen % $fsize) < 10) {  // allow for just a few bytes of crud on a file.
+		        for ($offset = 0; $offset < $flen; $offset += $fsize) {
 					if ($flen - $offset > 500) { // lose crap at end of file
-			            $framelist[] = array($dat, $offset, $framesize);
+			            $framelist[] = array("file" => $dat, "offset" => $offset, "height" =>24);
 					}
 		        }
 		 		break;
@@ -195,26 +264,57 @@ if ($zoom>=0) {
 	    echo "<img ";
 		echo "src=\"".$baseurl."vv.php?";
 //		if ($textmode) echo "longdesc=".$textmode."&";
-	    echo "format=0&gal=".$folder."&page=".$framelist[$zoom][0];
-	       if ($framelist[$zoom][1] > 0) {
-			echo "&offset=".$framelist[$zoom][1];
+	    echo "format=".$format."&gal=".$folder."&page=".$framelist[$zoom]["file"];
+	       if ($framelist[$zoom]["offset"] > 0) {
+			echo "&offset=".$framelist[$zoom]["offset"];
 	       }
-		echo "&height=".$framelist[$zoom][2]/40;
-		echo "\">";
+		echo "&height=".$framelist[$zoom]["height"];
+		echo "\"";
+		echo " alt=\"" . $framelist[$zoom]["file"]."\"";
+		echo " longdesc=".$baseurl."vv.php?format=".$format."&longdesc=1&gal=".$folder."&page=".$framelist[$zoom]["file"];
+
+		if ($framelist[$zoom]["offset"] > 0) {
+			echo "&offset=".$framelist[$zoom]["offset"];
+		}
+
+		echo ">";
+
+		?><small> <a href="?<?php
+		  echo $restp;
+		 if ($pageqty && $pagestart) echo "&start=".$pagestart;
+		 echo"&textmode=2&zoom=". $zoom ; ?>#zoom"  title="Textual view: &quot;<?php echo  $framelist[$zoom]["file"];
+
+		            ?>&quot;">
+		View as text</a></small><br />
+<?php
+
+
+
 	} else {
 		$savedget=$_GET;
 		$_GET = array("longdesc" => $textmode,
 		"gal" => $folder,
-		"page" => $framelist[$zoom][0],
-		"offset" => $framelist[$zoom][1],
-		"height" => $framelist[$zoom][2] / 40,
-		"format" =>0 );
+		"page" => $framelist[$zoom]["file"],
+		"offset" => $framelist[$zoom]["offset"],
+		"height" => $framelist[$zoom]["height"],
+		"format" =>$format );
 		echo "<table border=\"1\"><tr><td>";
 		//virtual ($baseurl."/vv.php?");
 		include "vv.php";
 
 		echo "</td></tr></table>";
 		$_GET=$savedget;
+
+		?><small> <a href="?<?php
+		echo $restp;
+		if ($pageqty && $pagestart) echo "&start=".$pagestart;
+		echo"&zoom=". $zoom ; ?>#zoom"  title="Graphical view: &quot;<?php echo  $framelist[$zoom]["file"];
+
+		?>&quot;">
+				Return to graphical view</a></small><br />
+		<?php
+
+
 /*
 	    echo "<iframe width=350 height=400 SCROLLING=\"no\" ";
 		echo "src=\"".$baseurl."vv.php?";
@@ -228,8 +328,8 @@ if ($zoom>=0) {
 */
 	}
 
-	 if (file_exists("./" . $folder . "/" . $framelist[$zoom][0] . ".txt")) {
-            $text = file_get_contents("./" . $folder . "/" . $framelist[$zoom][0] . ".txt");
+	 if (file_exists("./" . $folder . "/" . $framelist[$zoom]["file"] . ".txt")) {
+            $text = file_get_contents("./" . $folder . "/" . $framelist[$zoom]["file"] . ".txt");
             $cr = stripos($text, "\n");
             if ($cr != FALSE) {
                 $title = substr($text, 0, $cr);
@@ -244,12 +344,12 @@ if ($zoom>=0) {
         }
 
         if ($title == "") {
-            if (isset($index[$framelist[$zoom][0] . "+" . $framelist[$zoom][1]])) {
-                $title = $index[$framelist[$zoom][0] . "+" . $framelist[$zoom][1]][0];
-                $text = $index[$framelist[$zoom][0] . "+" . $framelist[$zoom][1]][1];
-            } else if (isset($index[$framelist[$zoom][0]])) {
-                $title = $index[$framelist[$zoom][0]][0];
-                $text = $index[$framelist[$zoom][0]][1];
+            if (isset($index[$framelist[$zoom]["file"] . "+" . $framelist[$zoom]["offset"]])) {
+                $title = $index[$framelist[$zoom]["file"] . "+" . $framelist[$zoom]["offset"]][0];
+                $text = $index[$framelist[$zoom]["file"] . "+" . $framelist[$zoom]["offset"]][1];
+            } else if (isset($index[$framelist[$zoom]["page"]])) {
+                $title = $index[$framelist[$zoom]["page"]][0];
+                $text = $index[$framelist[$zoom]["page"]][1];
             }
         }
 
@@ -265,9 +365,9 @@ if ($zoom>=0) {
     while ($dispnum < count($framelist) && ($dispcnt > 0 || $pageqty == 0)) {
         $oneframe = $framelist[$dispnum];
         // foreach ($framelist as $oneframe) {
-        $dat = $oneframe[0];
-        $offset = $oneframe[1];
-    	$height = $oneframe[2] / 40;
+        $dat = $oneframe["file"];
+        $offset = $oneframe["offset"];
+    	$height = $oneframe["height"];
         // $flen = filesize("./" . $folder . "/" . $dat);
         // if ($flen % 1024 == 0 || $flen < 1024) {
         // for ($offset = 0; $offset < $flen; $offset += 1024) {
@@ -319,13 +419,13 @@ if ($zoom>=0) {
    <img src="<?php
 
    if (file_exists($cache."/".$cachepage.".gif")) {
-   		echo $cache."/".$cachepage.".gif";
+   		echo $baseurl.$cache."/".$cachepage.".gif";
    } elseif (file_exists($cache."/".$cachepage)) {
-   		echo $cache."/".$cachepage;
+   		echo $baseurl.$cache."/".$cachepage;
    } else {
 
 
-    	echo $baseurl; ?>vv.php?thumbnail=1&gal=<?php echo $folder;  ?>&page=<?php echo $dat;
+    	echo $baseurl; ?>vv.php?format=<?php echo $format; ?>&thumbnail=1&gal=<?php echo $folder;  ?>&page=<?php echo $dat;
             if ($offset > 0) {
 
                 ?>&offset=<?php echo $offset;
@@ -334,7 +434,7 @@ if ($zoom>=0) {
 }
             ?>" alt="<?php echo $dat;
 
-            ?>" longdesc="<?php echo $baseurl; ?>vv.php?longdesc=1&gal=<?php echo $folder; ?>&page=<?php echo $dat;
+            ?>" longdesc="<?php echo $baseurl; ?>vv.php?format=<?php echo $format; ?>&longdesc=1&gal=<?php echo $folder; ?>&page=<?php echo $dat;
             if ($offset > 0) {
 			 ?>&offset=<?php echo $offset;
             }
@@ -364,14 +464,14 @@ View as text</a></small><br />
 
    <img src="<?php
    if (file_exists($cache."/".$cachepage.".gif")) {
-   		echo $cache."/".$cachepage.".gif";
+   		echo $baseurl.$cache."/".$cachepage.".gif";
    } elseif (file_exists($cache."/".$cachepage)) {
-   		echo $cache."/".$cachepage;
+   		echo $baseurl.$cache."/".$cachepage;
    } else {
 
    		echo $baseurl;
 
-            ?>vv.php?thumbnail=2&gal=<?php echo $folder;
+            ?>vv.php?format=<?php echo $format;?>&thumbnail=2&gal=<?php echo $folder;
 
             ?>&page=<?php echo $dat;
             if ($offset > 0) {
@@ -384,7 +484,7 @@ View as text</a></small><br />
 
             ?>" longdesc="<?php echo $baseurl;
 
-            ?>vv.php?longdesc=1&gal=<?php echo $folder;
+            ?>vv.php?format=<?php echo $format; ?>&longdesc=1&gal=<?php echo $folder;
 
             ?>&page=<?php echo $dat;
             if ($offset > 0) {

@@ -65,6 +65,7 @@ longdesc=<mode> 0(default)=graphic, 1=text, 2=<pre>text with * for graphics.
 thumbnail=<tn size> 0(default)=full size, 0<n<3 = n*100 pixel wide image.
 top=<text> optional line to insert above image (see also format b9)
 format=<option bits>
+--format b11 = do not conceal concealed text!
 --format b10 = always parse frame data as RAW first (cope with CR/LF!)
 --format b9 = "top" text overwrites top line in file.
 --format b8 = attempts to be case insensitive on page->filenames.
@@ -236,8 +237,34 @@ New in vv 0.5.J
 adjusted parsing of text= parameter.
 alowed for blank graphics char to be held..!
 
-new in vl 0.3C
+new in vl 0.3.C
 added framesize= parameter (Thanks gARetH) used on some types only
 list (not zoom) now checks for cache file & uses <img src= direct to that if found
 added cache= parameter just in case it is needed. (needs adding to vv yet)
 added automatic frame size if file is mltiple of 960,1000 or 1024 bytes
+
+new in vl 0.3.D
+Bugfix auto frame size; note to self: search for ALL intances of a var when changing its name
+
+new in vl 0.3.E
+Bugfix- add baseurl to cache image addresses! doh!
+Bugfux- store height in $framelist
+
+new in vv 0.5.K
+Fix bugs in hold graphics and conceal.  BBC Engineering Ceefax test page now displays
+correctly.  (matches BBC Micro hardware exactly if black is disabled.)
+added format option bit 11 to disable Conceal, pending a full Reveal implementation.
+
+new in vl 0.3.F
+add missing alt and longdesc tags to zoomed images.
+
+new in vv 0.5.M
+Support .TT teletext dump files
+add text mode translation of long dash (ascii `) to hyphen
+
+new in vl 0.3.G
+support for .TT teletext dump files (WiP)
+add links to switch between text & graphics when zoomed.
+
+new in vl 0.3.H
+support for overriding format= option.

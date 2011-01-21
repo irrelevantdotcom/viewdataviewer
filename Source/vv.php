@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  *
- * @version 0.5.J beta
+ * @version 0.5.P beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  *
  *
@@ -11,6 +11,9 @@
  *
  *
  * This is a very simple renderer that **cannot cope with "dynamic" frames! **
+ * (proviso = if it detects you need raw mode, or you set format | 1024, then it
+ * can cope with them, but you only get to see the final result, not the dynamic
+ * effects.)
  *
  * TODO: check validity of cache (compare dates)
  * TODO: alternate languages and characer sets
@@ -28,7 +31,10 @@
 *  top = single line to place at top of page
  * format = 0 - auto, 1=mode7, 2=gnome, 3=raw, 4=ABZTtxt (JGH) 5-Axis
 *  6 = !SVReader, 7=Axis "i" format, 8 Spectrum +3 files, 9 .EPX files.
-* add 1024 to always parse raw moe
+* 10= .TT files 11=.pic/.idx  12=.EP1 files
+* add 4096 for .tt mode parsing
+* * add 2048 to force reveal mode
+* * add 1024 to always parse raw moe
 * *  add 512 for $top to overwrite top line of page
 *  add 256 for case insensitivity
  * add 128 to disable black
@@ -45,8 +51,22 @@
  * font is 20 high x 12 wide
  */
 
+if (!function_exists('numtest')) {
+	function numtest($str){
+		$num=TRUE;
+		for ($i=0;$i<strlen($str);$i++) {
+			if ((ord(substr($str,$i,1))&127) >= ord("A")) $num=FALSE;
+			if ((ord(substr($str,$i,1))&127) == ord(" ")) $num=FALSE;
+
+		}
+		return $num;
+	}
+}
 
 vv_main();
+
+
+
 
 function vv_main(){
 
@@ -86,9 +106,14 @@ if (isset($_GET["width"])) {
 }
 
 $height = 25;
+$framelength = 0;
 if (isset($_GET["height"])) {
     if (is_numeric($_GET["height"])) $height = $_GET["height"];
     // else $error = "Invalid height";
+	if ($height < 0) {
+		$framelength =-$height;
+		$height = 24;
+	}
 }
 
 $folder = "frames";
@@ -128,13 +153,14 @@ $lborder = 12; // left and right
 $thumb_w = 100 * $thumbnail;
 $thumb_h = 100 * $thumbnail;
 // pause time per frame for flashing
-$flashdelay[0] = 100;
-$flashdelay[1] = 33;
+$flashdelay[0] = 100;  // flashing text visible, concealed text hidden
+$flashdelay[1] = 33;   // flashing text hidden,  concealed text hidden
 // config stuff
 $black = 1; // support black ink (not available on SAA5050...)
 // what to display..
 $donotcache = 0;
 $alwaysrender = 0;
+$ttmode = 0;
 $page = "";
 if (isset($_GET["page"])) {
     if (preg_match('/^[a-zA-Z0-9_.]{1,16}$/', $_GET['page'])) $page = $_GET["page"];
@@ -183,6 +209,9 @@ if (isset($_GET["format"])) {
 		if ($format & 16) {
 			$page=str_replace(".","/",$page);
 		}
+    	if ($format & 4096) {
+    		$ttmode =1;
+    	}
     } else $error = "Invalid format";
 }
 
@@ -250,6 +279,11 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 			    $format += 9;
 			}
 
+        	if (($format & 15) == 0 && substr($text,0,8) == "PLUS3DOS") {
+        		// Ripped from a spectrum disc. assume it's a viewer file
+        		// as I don't have anything else yet!
+        		$format +=8;
+        	}
 
 			if (($format & 15) == 0 && strlen($text) >= 5120 ) {
 				if ( substr($text,4096,2) == chr(0)."F"
@@ -271,11 +305,6 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 
 			}
 
-			if (($format & 15) == 0 && substr($text,0,8) == "PLUS3DOS") {
-			    // Ripped from a spectrum disc. assume it's a viewer file
-				// as I don't have anything else yet!
-				$format +=8;
-			}
 
 
 			if (($format & 15) == 0 && ($text[21] == "Y" || $text[21] == "N") &&
@@ -283,6 +312,36 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 			) {  // !SVreader
 			    $format += 6;
 			}
+
+
+//        	if (($format & 15) == 0 && numtest(substr($text,42,7))) {	// looking for time ... not very good.
+        	if (($format & 15) == 0 && (strtolower(substr($page,-3,3))==".tt")) {
+        		$format += 10; // .TT file
+        	}
+        	if (($format & 15) == 10 ) $ttmode = 1;
+
+        	if (($format & 15) == 0 && (strtolower(substr($page,-4,4))==".pic")) {
+        		$format += 11;
+        	}
+        	if (($format & 15) == 0 && is_numeric(substr($text,0,9)) && ctype_alpha(substr($text,9,1) && is_numeric(substr($text,10,99))) ) {
+        		$format += 11;
+        	}
+
+        	if (($format & 15) == 0) {
+        		$cnt = 0;
+        		for ($i=0; $i+=40; $i<1024) {
+        			$c = ord(substr($text,$i,1)) & 127;
+					if ( $c < 9 && $c != 0) {	// colour code ?
+        				$cnt++;
+        			}
+        		}
+        		if ($cnt >3) {	// more than three lines start with a colour?
+        			$format += 1;
+        		}
+        	}
+
+
+
 
 	// skip over any file headers (not frame headers)
 
@@ -386,6 +445,22 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
    				$text = substr($text,8,1000);
 				$height = 25;
 			}
+			if (($format & 15) == 10) {
+				if ($framelength == 0) $framelength = ord(substr($text,0,1))+256*ord(substr($text,1,1));
+				// blank first five characters of page
+				$text = "        " . substr($text,18,$framelength-18);
+				$height = 24;
+			}
+
+        	if (($format & 15) == 11) {
+        		$text=substr($text,109);
+        		$text=substr($text,0,strpos($text,chr(255))-1);
+        		$height=24;
+        	}
+        	if (($format & 15) == 12) {
+        		$text = substr($text,6,1000);
+        		$height = 24;
+        	}
 
 			if ($top != "") {
 			    if ($format & 512) { // overwrite top line
@@ -399,9 +474,21 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
         }
     }
 
-	if (($format & 15) == 3 || ($format & 15)==6 || ($format & 1024)) {	// RAW mode
+	if ($ttmode) {
+		$t="";
+		for ($x=0;$x<strlen($text);$x++) {
+			$c=ord(substr($text,$x,1));
+			if ($c == 15) {
+				$t .= str_repeat(substr($text,$x+2,1),ord(substr($text,$x+1,1)) );
+				$x += 2;
+			} else $t .= chr($c);
+		}
+		$text = $t;
+	}
+
+	if (($format & 15) == 3 || ($format & 15)==6 || ($format & 15)==11 ||($format & 1024)) {	// RAW mode
 		$rawtext = $text;
-		$text = str_repeat(" ",960);
+		$text = str_repeat(" ",$width*$height);
 		$cx = 0; $cy=0;
 		$tp = 0; $esc=0;
         while ($tp < strlen($rawtext)) {
@@ -417,14 +504,14 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 					break;
 				case 10 :
 					$cy++;
-					if ($cy>23) $cy=0;
+					if ($cy>$height - 1) $cy=0;
 					break;
 				case 8:
 					$cx -= 1;
 					break;
 				case 11:
 					$cy--;
-					if ($cy<0) $cy=23;
+					if ($cy<0) $cy=$height - 1;
 					break;
 				case 27:
 					$esc = 1; //!$esc;
@@ -432,24 +519,28 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				case 30:
 					$cx = $cy = 0;
 					break;
+				case 15:
+
+					break;
+
 				default:
 					if ($esc) {
 						$esc = 0;
 						$char = $char & 31;
 					}
-					$text[($cx+(40 * $cy))] = chr($char);
+					$text[($cx+($width * $cy))] = chr($char);
 					$cx++;
 					break;
 			} // switch
-			if ($cx>39) {
+			if ($cx>$width - 1) {
 			    $cx=0;
 				$cy++;
-				if ($cy>23) $cy=0;
+				if ($cy>$height - 1) $cy=0;
 			}
 			if ($cx<0) {
-			    $cx=39;
+			    $cx=$width - 1;
 				$cy--;
-				if ($cy<0) $cy=23;
+				if ($cy<0) $cy=$height - 1;
 			}
 			$tp++;
 		}
@@ -489,11 +580,14 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 		$newflash=0;
         $double = 0; // doubleheight off
         $graphics = 0; // text mode
+    	$newgraph = 0;
         $seperated = 0; // normal graphics
 		$newsep=0;
         $holdgraph = 0; // hold mode off
+    	$newhold = 0;
         $holdchar = 32; // default hold char
         $conceal = 0;
+    	$newconc = 0;
         // starting textpointer position
         $tp = 0;
 
@@ -501,6 +595,9 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 			$cf=$newcf;
 			$flash=$newflash;
 			$seperated=$newsep;
+        	$holdgraph=$newhold;
+        	$graphics=$newgraph;
+        	$conceal=$newconc;
 
             $char = ord($text[$tp]); // int!
             if ($doublebottom) { // if we're on the bottom row of a double height bit
@@ -524,9 +621,6 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             if ($char < 32) {
                 switch ($char + 128) { // just for consistency ** remove this**
                     case 128;			// black
-                    if ($black != 1) {
-                        break;
-                }
                 case 129:			// other coours
                 case 130:
                 case 131:
@@ -534,9 +628,11 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                 case 133:
                 case 134:
                 case 135:
-                    $newcf = $char;
-                    $graphics = 0;
-                    $conceal = 0;
+                	if ($char || $black == 1) {
+                		$newcf = $char;
+                	}
+                    $newgraph = 0;
+                	$newconc = 0;
                     break;
                 case 136:		// flash on
                     $newflash = 1;
@@ -552,9 +648,6 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                     $double = 1;
                     break;
                 case 144;		// black graphics
-                if ($black != 1) {
-                    break;
-                }
                 case 145:		// other colours
                 case 146:
                 case 147:
@@ -562,12 +655,16 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                 case 149:
                 case 150:
                 case 151:
-                    $newcf = $char-16;
+                	if ($char != 16 || $black == 1) {
+                		$newcf = $char-16;
+                	}
                     $graphics = 1;
-                    $conceal = 0;
+                	$newgraph = 1;	// CHECK does graphics mode start immediately?
+                    $newconc = 0;
                     break;
                 case 152: 		// conceal
-                    $conceal = 1;
+                    $conceal = 1; // immediately
+                	$newconc = 1;
                     break;
                 case 153:		// contiguous grapohics
                     $newsep = 0;
@@ -582,10 +679,11 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                     $cb = $cf;
                     break;
                 case 158:		// hold graphics mode on
-                    $holdgraph = 1;
+                    $holdgraph = 1; // hold works immediately
+                	$newhold = 1;
                     break;
                 case 159:		// hold graphics mode off
-                    $holdgraph = 0;
+                    $newhold = 0; // release works after this cell.
                     break;
 
                 default: ;		// ignore all other control codes
@@ -597,7 +695,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             		if ($char & 32) { // actual graphics and not "blast through caps"
             			if ($longdesc) {
             				if ($longdesc == 2 && $char>32) {
-            					$char = 42;
+            					$char = 42;	// star
             				} else $char=32;  // ignore graphics in text mode
             			} else {
             				$char += 96;
@@ -608,13 +706,20 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
             	}
 
             }
+
+           	// save last graphics char for hold mode
+           	if (($char >= 128) && $graphics) {
+           		$holdchar = $char;
+           	} else $holdchar = 32;
+
+
             // are we a flasher - i.e. is anything visible flashing?
             if ($flash == 1 && $char > 32) {
                 $flasher = 1;
                 if ($flashcycle == 1) $char = 32;
             }
             // concealed text does not display
-            if ($conceal == 1 && !$longdesc) $char = 32;
+            if (($format & 2048)==0 && $conceal == 1 && !$longdesc) $char = 32;
             // only bottom of double height chars show up on line below a d.h character
             if ($doublebottom && (!$double || $longdesc)) $char = 32;
             // offset to get graphics characters within fontfile
@@ -638,10 +743,6 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
                 if ($char > 32) imagestring($my_img, $fnum , $lborder + ($cx * $fwidth) , $tborder + ($cy * $fheight) , chr($char) , $cf);
             }
 
-        	// save last graphics char for hold mode
-        	if (($char >= 128) && $graphics) {
-        		$holdchar = $char;
-        	} else $holdchar = 32;
 
 
 
@@ -664,11 +765,14 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 				$newflash = 0;
                 $double = 0; // doubleheight off
                 $graphics = 0; // text mode
+            	$newgraph = 0;
                 $seperated = 0; // normal graphics
 				$newsep = 0;
                 $holdgraph = 0; // hold mode off
+            	$newhold = 0;
                 $holdchar = 32; // default hold char
                 $conceal = 0;
+            	$newconc = 0;
                 $doublebottom = $nextbottom;
                 $nextbottom = 0;
             }
@@ -710,7 +814,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
     // display image
     if ($longdesc) {
         header("Content-type: text/html");
-		$longtext = str_replace(array("#","_","[","]","{","\\","}","~"),array("&pound;","#","&laquo;","&raquo;","&frac14;","&frac12;","&frac34;","&divide;") , $longtext);
+		$longtext = str_replace(array("#","_","[","]","{","\\","}","~","`"),array("&pound;","#","&laquo;","&raquo;","&frac14;","&frac12;","&frac34;","&divide;","-") , $longtext);
 
 
 	  	if ($longdesc == 2) echo "<pre>";
