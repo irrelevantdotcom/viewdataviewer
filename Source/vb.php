@@ -3,7 +3,7 @@
 /**
  * Simple Viewdata Browser
  *
- * @version 0.1.C
+ * @version 0.1.D
  * @copyright 2010 Rob O'Donnell
  */
 
@@ -113,7 +113,32 @@ if ($goto == "0a") {
     $goto=$urf;
 }
 
-if (($format & 15) == 5 || ($format & 15) == 7) {
+if (($format & 15) == 0 && substr($fnam,-4) == ".PIC") $format = 11;
+
+if (($format & 15) == 11) {	// .PIC/.IDX
+	if ($db == "") {
+		$db = $folder;
+		$folder = "";
+		$fnam="./" . $db;
+	} else {
+		$fnam="./" . $folder . "/" . $db;
+	}
+
+	$ifile = substr($fnam,0,strlen($fnam)-4).".IDX";
+//	echo $ifile;
+	$temp = file_get_contents($ifile);
+	$flen =strlen($temp);
+//	echo $flen;
+	for ($offset = 0; $offset < $flen; $offset +=9)	{
+		$pn = 0;
+		for ($i = 0; $i<5; $i++) $pn=256*$pn + ord(substr($temp,$offset+$i,1));
+		$idx["$pn".substr($temp,$offset+5,1)] = 65536*ord(substr($temp,$offset+6,1))+256*ord(substr($temp,$offset+7,1))+ord(substr($temp,$offset+8,1));
+//		echo $pn.substr($temp,$offset+5);
+
+	}
+	//print_r($idx);
+
+} else if (($format & 15) == 5 || ($format & 15) == 7) {
 	if ($db == "") {
 	    $db = $folder;
 		$folder = "";
@@ -193,6 +218,23 @@ if (($format & 15) == 5) {
 			if (array_search($hashroute,$idx) === FALSE) $hashroute="";
 		} else $hashroute = "";
 	}
+} else if (($format & 15) == 11) {
+//	$offset=array_search(array_search($goto,$idx),array_keys($idx));
+	if (!isset($idx[$goto])) {
+		$error =  "Sorry, the page requested, $goto, was not found in the database available. Please press BACK in your browser and try another route.";
+	    $format = 1;
+	} else {
+		$offset = $idx[$goto];
+		$text=file_get_contents($fnam,0,NULL,$offset,1024);
+		$text=substr($text,0,strpos($text,chr(255))-1);
+	    $frame = substr($goto, strlen($goto)-1);
+	    if ($frame < "z") {
+	        $frame = chr((ord($frame)|32) + 1);
+	        $hashroute = substr($goto, 0, strlen($goto)-1) . $frame;
+//			if (array_search($hashroute,$idx) === FALSE) $hashroute="";
+	    	if (!isset($idx[$hashroute])) $hashroute="";
+		} else $hashroute = "";
+	}
 } else {
 	$text = "";
 	if ($error == "") {
@@ -232,9 +274,9 @@ if ($error != "") {
 		    $top = substr($text,104,24).chr(7).str_pad($goto,10).chr(3)."  0p";
 		}
 	}
-    ?><center>
+    ?><a id="zoom"></a><center>
 <?php
-	if (($format & 15)==5 || ($format & 15)==7) {
+	if (($format & 15)==5 || ($format & 15)==7 || ($format & 15) == 11) {
 		$lgoto=$db;
 	    $lfolder=$folder;
 	} else {
@@ -320,12 +362,17 @@ var actualkey=String.fromCharCode(unicode)
 	        $route = 0+$route; // 800FFFFFFF -> 800
 			if ($route == 0) $route = "";
 			else $route ="{$route}a";
+	    } else if (($format & 15) == 11) {
+			$route = ltrim(substr($text,10+($i % 10)*9,9),"0");
+	    	if ($route == 0 || $route == 999999999) $route = "";
+	    	if ($route != "") $route .="a";
+
 	    }
         if ($route != "") {
-            $routestuff .= '<a href="?' . $restp . 'mode=' . $mode . '&goto=' . $route . '" id="link' . ($i % 10) . '">';
+            $routestuff .= '<a href="?' . $restp . 'mode=' . $mode . '&goto=' . $route . '#zoom" id="link' . ($i % 10) . '">';
 
 			echo 'if (actualkey=="' . ($i % 10) . '")
-location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '"
+location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '#zoom"
 
 ';
 
@@ -337,7 +384,7 @@ location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '"
 		$routestuff .= " ";
     }
 	if (($format & 15) == 2 || ($format & 15) == 6
-		|| ($format & 15) == 7) {
+		|| ($format & 15) == 7 || ($format & 15) == 11) {
 /*	    $route = substr($goto, 0, strlen($goto)-1);
 	    $frame = substr($goto, strlen($goto)-1);
 	    if ($frame < "z") {
@@ -353,9 +400,9 @@ location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '"
 	}
 
     if ($route != "") {
-        $routestuff .= '<a href="?' . $restp . 'mode=' . $mode . '&goto=' . $route . '" id="linkHash">';
+        $routestuff .= '<a href="?' . $restp . 'mode=' . $mode . '&goto=' . $route . '#zoom" id="linkHash">';
 			echo 'if (unicode==13)
-location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '"
+location.href = "?' . $restp . 'mode=' . $mode . '&goto=' . $route . '#zoom"
 
 ';
     }

@@ -268,3 +268,11 @@ add links to switch between text & graphics when zoomed.
 
 new in vl 0.3.H
 support for overriding format= option.
+
+new in vv 0.5.P
+.pic/.idx files
+.EP1 files
+
+new in vb 0.1.D
+support for .pic/.idx files
+add #zoom on links to jump to image.
