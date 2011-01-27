@@ -3,7 +3,7 @@
 /**
  * Teletext image viewer
  *
- * @version 0.5.P beta
+ * @version 0.5.Q beta
  * @copyright 2010 Rob O'Donnell. robert@irrelevant.com
  *
  *
@@ -329,7 +329,7 @@ if (!$longdesc && $alwaysrender != 1 && $page != "" && file_exists("./cache/" . 
 
         	if (($format & 15) == 0) {
         		$cnt = 0;
-        		for ($i=0; $i+=40; $i<1024) {
+        		for ($i=0; $i<1024; $i+=40) {
         			$c = ord(substr($text,$i,1)) & 127;
 					if ( $c < 9 && $c != 0) {	// colour code ?
         				$cnt++;

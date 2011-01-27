@@ -276,3 +276,6 @@ new in vv 0.5.P
 new in vb 0.1.D
 support for .pic/.idx files
 add #zoom on links to jump to image.
+
+new in vv 0.5.Q
+Bugfix typo in detection routine +=1
