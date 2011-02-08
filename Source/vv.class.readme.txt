@@ -26,7 +26,9 @@ Class ViewdataViewer.
 $vfile = new ViewdataViewer()
 
 $vfile->LoadFile($file, $hint = 0, $fsp = "")
+$vfile->LoadData($text, $hint = 0, $fsp = "")
 		$file - path/file to load
+		$text - use previously sourced text
 		$hint - supposed format of this file
 		$fsp - original name of file
 	returns:
@@ -35,11 +37,12 @@ $vfile->LoadFile($file, $hint = 0, $fsp = "")
 
 $vfile->format - format of file
 $vfile->framesfound - number of frames found within file
-$vfile->frameindex = array(key=>Array(.."offset"..) - offset within file
+$vfile->frameindex = array(key=>Array(..)) - frame contents information.
 
 		note that key may not necesarilly be 0,1,2,3 etc, especially where files
 		contain interlinked pages!  Expect such as "1a" "ss.0a"  ..
-
+		use array_keys() to get the list.
+		use these as $idx parameters in functions below:
 
 $vfile->ReturnMetaData($idx, $param)
 		$idx - key to frame within file (see above)  NULL for first(or only)
@@ -54,14 +57,24 @@ $vfile->ReturnMetaData($idx, $param)
 
 $vfile->ReturnScreen($idx,$mode)
 		$idx - key to frame within file (see above)  NULL for first(or only)
-		$mode - "internal" - screendata in simple 7bit internal format.
+		$mode - "internal" - screendata in 7bit internal format.
 				"simple" - screen data with control codes only removed
-				"text" - plain text, all graphics ommitted.	 	TODO
-				"stars" - text with graphics replaced by *	 	TODO
+				"text" - plain text, all graphics ommitted.
+				"stars" - text with graphics replaced by *.
 				"html" - best attempt html version of image. 	TODO
-				"imagetype" - return type of image available. TODO
-				"image" - image. may be GIF or PNG .....!   	TODO
+				"imagetype" - return type of image available.
+				"image" - image. may be GIF or PNG .....!
 	returns:
 		item requested
-			for imagetype, this might be "PNG", "GIF"
+			for imagetype, this might be "png", "gif"
 		FALSE - no such frame or invalid mode.
+
+
+
+
+
+CHANGELOG
+---------
+new in vv.class.php 0.6.0   Initial alpha release
+
+new in vv.class.php 0.6.1	Bugfix 'raw' mode.
