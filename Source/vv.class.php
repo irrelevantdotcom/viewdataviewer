@@ -9,7 +9,7 @@
  *
  *
  *
- * @version 0.6.0
+ * @version 0.6.1
  * @copyright 2011 Robert O'Donnell
  */
 
@@ -756,7 +756,7 @@ class ViewdataViewer {
 								$esc = 0;
 								$char = $char & 31; // ESC A stored as #01
 							}
-							$text[($cx+($width * $cy))] = chr(ord($char) & 127);
+							$text[($cx+($width * $cy))] = chr($char & 127);
 							$cx++;
 							break;
 					} // switch
