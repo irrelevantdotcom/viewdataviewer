@@ -1,0 +1,67 @@
+
+Rob's Viewdata Viewer Class.  The Documentation.
+
+Project home page: http://code.google.com/p/viewdataviewer/
+Alternate information: http://www.irrelevant.com/vv/
+
+The vv.php, vl.php and vb.php codebase grew to the state it's in very
+organically, and without any proper design.  This re-write of the core code
+is intended to address this, and produce a proper API for accessing original-
+format viewdata page files.
+
+This should ensure that the application programmes can deal with viewdata
+format files without any need to know themselves about the format.  This will
+avoid the situation in place with the above mentioned routines where each
+addresses different aspects of some files, with much duplication and some
+contradiction.
+
+current version 0.6.0 - 2011-02-06 (pre-alpha incomplete functionality.)
+
+include "vv.class.php";
+defines a number of constants defining viewdata types and modifiers.
+function vvtypes($val)  returns string relating to type specified, or FALSE.
+
+Class ViewdataViewer.
+
+$vfile = new ViewdataViewer()
+
+$vfile->LoadFile($file, $hint = 0, $fsp = "")
+		$file - path/file to load
+		$hint - supposed format of this file
+		$fsp - original name of file
+	returns:
+		TRUE - file loaded and analysed
+		FALSE - file not found or of unrecognised type
+
+$vfile->format - format of file
+$vfile->framesfound - number of frames found within file
+$vfile->frameindex = array(key=>Array(.."offset"..) - offset within file
+
+		note that key may not necesarilly be 0,1,2,3 etc, especially where files
+		contain interlinked pages!  Expect such as "1a" "ss.0a"  ..
+
+
+$vfile->ReturnMetaData($idx, $param)
+		$idx - key to frame within file (see above)  NULL for first(or only)
+		$param - metadata item required, e.g. "route0".
+	returns:
+		value of paramater
+		FALSE - no such frame or parameter for this frame type
+
+	Different frame formats support different ranges of parameters. Many support
+	none, especially for frames saved out by client terminal programmes.
+
+
+$vfile->ReturnScreen($idx,$mode)
+		$idx - key to frame within file (see above)  NULL for first(or only)
+		$mode - "internal" - screendata in simple 7bit internal format.
+				"simple" - screen data with control codes only removed
+				"text" - plain text, all graphics ommitted.	 	TODO
+				"stars" - text with graphics replaced by *	 	TODO
+				"html" - best attempt html version of image. 	TODO
+				"imagetype" - return type of image available. TODO
+				"image" - image. may be GIF or PNG .....!   	TODO
+	returns:
+		item requested
+			for imagetype, this might be "PNG", "GIF"
+		FALSE - no such frame or invalid mode.
