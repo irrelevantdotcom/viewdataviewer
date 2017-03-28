@@ -24,6 +24,10 @@ if (!empty($_GET['feed'])) {
 
 	}
 }
+$template = 0;
+if (isset($_GET['txt'])) {
+	$template = 1;
+}
 // Set which feed to process.
 $feed->set_feed_url($feedurl);
 
@@ -40,33 +44,55 @@ $feed->init();
  	$esc = chr(27);
  	$crlf = chr(13).chr(10);
 
- 	$text .= str_pad($esc ."CPoC Viewdata.org.uk",24) . $esc . "G" . str_pad("100a",10). $esc . "C   0p"; // . $crlf;
- 	$text .= $esc . "A" . $esc . "]" . $esc . "G" . $esc . "M" . substr(str_pad($feed->get_title(),34),0,34) . "  ";
-	$text .= $crlf;
-	$text .= " " . $esc . "]" . $esc . "D" . substr(str_pad(html_entity_decode($feed->get_description()),36),0,36)." ";
-	$text .= $crlf;
-
+	if ($template == 1) {
+		$timezone = "Europe/London";
+		# PHP 5
+		date_default_timezone_set ($timezone);
+		# PHP 4
+		putenv ('TZ=' . $timezone);
+		$text .= "P100" . $esc . "G" . $esc . "]" . $esc . "Dv'data UK " .$esc . "B". $esc . "\\100" . $esc . "G";
+		$text .= date("DdM") . $esc . "C" . date("H:i/s");
+		$text .= $esc ."D" . $esc . "]" . $esc ."G" . $esc . "M" . substr(str_pad(html_entity_decode($feed->get_title()),35),0,35)." ";
+		$text .= $crlf;
+		$text .= $esc . "F" . $esc . "]" . $esc . "D" . substr(str_pad(html_entity_decode($feed->get_description()),36),0,36)." ";
+		$text .= $crlf;
+	} else {
+	 	$text .= str_pad($esc ."CPoC Viewdata.org.uk",24) . $esc . "G" . str_pad("100a",10). $esc . "C   0p"; // . $crlf;
+	 	$text .= $esc . "A" . $esc . "]" . $esc . "G" . $esc . "M" . substr(str_pad($feed->get_title(),34),0,34) . "  ";
+		$text .= $crlf;
+		$text .= " " . $esc . "]" . $esc . "D" . substr(str_pad(html_entity_decode($feed->get_description()),36),0,36)." ";
+		$text .= $crlf;
+	}
 /*
 	   Here, we'll loop through all of the items in the feed, and $item represents the current item in the loop.
 	*/
-	$count = 11;
+	if ($template == 1) {
+		$count = 101;
+	} else {
+		$count = 11;
+	}
 	$colour = 0;
+	$c = 1;
  	foreach ($feed->get_items() as $item) {
  		$text .= $esc . "G" . $count . $esc . ($colour ? "C" : "F");
  		$colour = !$colour;
-		$text .= substr(str_pad(html_entity_decode($item->get_title()),36),0,36);
+		$text .= substr(str_pad(html_entity_decode($item->get_title()),36-$template),0,36-$template);
 		$count++;
-		if ($count % 10 == 0) $count += 1;
-		if ($count > 30) break;
+ 		$c++;
+ 		if ($count % 10 == 0) $count += 1;
+		if ($c > 18) break;
 	}
 
-	while($count < 30){
+	while($c < 18){
  		$text .= $crlf;
- 		$count++;
- 		if ($count % 10 == 0) $count += 1;
+ 		$c++;
  	}
 
-	$text .= $esc . "A" . $esc . "]" . $esc . "G0 Index";
+	if ($template == 1) {
+		$text .= $esc . "D" . $esc . "]" . $esc . "G100 Index  200 Search  300 Messages";
+	} else {
+		$text .= $esc . "A" . $esc . "]" . $esc . "G0 Index";
+	}
 
 //	$text = "hello";
 	$pg = new ViewdataViewer();

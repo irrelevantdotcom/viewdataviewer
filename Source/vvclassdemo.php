@@ -10,7 +10,7 @@
  * no sanitisation of inputs, and using this code in a production environment
  * may be dangerous.
  *
- * @version 1.0.0 Demo
+ * @version 1.0.1 Demo
  * @copyright 2011 Robert O'Donnell.
  */
 
@@ -62,11 +62,21 @@ switch($_GET['action']){
 			?>
 			<html>
 			<body>
-			<p>File is of type "<?php echo vvtypes($_SESSION[$svar]->format); ?>".</p>
-			<p>File contains <?php echo $_SESSION[$svar]->framesfound; ?> frames.</p>
-			<p>First frame, page number "<?php echo $_SESSION[$svar]->ReturnMetaData(NULL,"pagenumber");?>", is:</p>
-			<hr>
-<?php
+ <?php
+ 			echo "<p>File is of type \"" . vvtypes($_SESSION[$svar]->format) . "\".</p>\n";
+			if ($_SESSION[$svar]->framesfound > 1) {
+				echo "<p>File contains " . $_SESSION[$svar]->framesfound . " frames.</p>\n";
+				echo "<p>These are indexed as: <select name=\"frame\">\n";
+				foreach ( $_SESSION[$svar]->frameindex as $k=>$l){
+					echo "<option>$k</option>\n";
+				}
+				echo "</select></p>\n";
+			} else {
+				echo"<p>File contains 1 frame.</p>\n";
+			}
+
+			echo "<hr><p>First frame, page number \"" .  $_SESSION[$svar]->ReturnMetaData(NULL,"pagenumber") . "\", is:</p><hr>\n";
+
 			if (($t=$_SESSION[$svar]->ReturnScreen(NULL,"stars")) === FALSE)  {
 				echo "ReturnScreen failed";
 			} else {

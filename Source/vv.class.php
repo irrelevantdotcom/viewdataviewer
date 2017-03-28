@@ -9,13 +9,15 @@
  *
  *
  *
- * @version 0.6.1
+ * @version 0.6.3
  * @copyright 2011 Robert O'Donnell
  */
 
 // TODO: BuildIndex AXIS frame types.
 // TODO: check that all routines check a valid frame has been loaded!
-// TODO: finish metadata routines
+// TODO: finish metadata routines for all frame formats
+// TODO: +try and identify page number from text on page. remember teletext!
+// TODO: +try and find any dates within text on page. multiple formats!
 // TODO: routine to insert text to frame (replace topline facility)
 // TODO: routine to retrieve text from part of frame
 // TODO: store image in $frameindex rather than creating it every time.
@@ -86,8 +88,8 @@ function vvtypes($val){
 }
 
 //define ("CACHEDIR","./cache/");
-define ("FONTDIR","./Font/");
-define ("TEMPDIR","./cache/");
+define ("FONTDIR", dirname( __FILE__  )."/Font/");
+define ("TEMPDIR", dirname( __FILE__  )."/cache/");
 
 include "GIFEncoder.class.php";
 
@@ -102,7 +104,7 @@ class ViewdataViewer {
 
 	// available to access if really really needed.
     public $framesfound;   // number of frames found in data
-	public $frameindex;	 	// array of arrays that hold stuff about the files..
+	public $frameindex = array();	 	// array of arrays that hold stuff about the files..
 
 
 
@@ -294,7 +296,7 @@ class ViewdataViewer {
 			case VVTYPE_EP1;
 			$h = 24;
 			case VVTYPE_MODE7:
-				if ($this->format == VVTYPE_MODE7) $h = 25;
+				if ($this->format == VVTYPE_MODE7 || $this->format == VVTYPE_EP1) $h = 25;
 				$this->framesfound = 1;
 				$this->frameindex[0] = array("file" => $dat, "offset" =>0, "size" => strlen($temp), "height" => $h);
 				break;
@@ -321,6 +323,30 @@ class ViewdataViewer {
 
 			case VVTYPE_AXIS:
 			case VVTYPE_AXIS_I:
+				$index="";
+				$data=""; //substr($temp,0,4096);
+				if (strlen($temp)>356352) {
+					for ($j=0; $j<strlen($temp); $j+=352256) {
+						$data .= substr($temp,$j,4096);
+					}
+				}
+				for ($j=0; $j<strlen($data); $j+=4096) {
+					for ($i=16;  $i<4096; $i+=12) {
+						$id = ord($data[10+$i+$j])+256*ord($data[11+$i+$j]);
+						$offset = 4096 + 1024 * ($this->framesfound);
+						$offset += 4096*(int)($this->framesfound /352256);	// TODO 2012; i think this is wrong.
+						if ($id) {
+							$this->frameindex[trim(substr($data,$i+$j,10))] = array("file" => $dat,
+							"offset"=> $offset,
+							"size" => 1024,
+							"height"=>24,
+							"id"=>$id
+							);
+							$this->framesfound++ ;
+						}
+
+					}
+				}
 				// TODO
 
 				break;
@@ -337,7 +363,7 @@ class ViewdataViewer {
 			case VVTYPE_EPX:
 				for ($offset = 4; $offset < $flen; $offset += 1008) {
 					if ($flen - $offset > 500) { // lose crap at end of file
-						$this->frameindex[$this->framesfound] = array("file" => $dat, "offset" => $offset, "size" => 1008, "height" =>24);
+						$this->frameindex[$this->framesfound] = array("file" => $dat, "offset" => $offset, "size" => 1008, "height" =>25);
 						$this->framesfound++ ;
 					}
 				}
@@ -351,7 +377,7 @@ class ViewdataViewer {
 				while($offset < $flen && ord(substr($temp,$offset-($offset%2048)+2047,1))<5){
 					$ttpage=ord(substr($temp,$offset+2,1))+256*ord(substr($temp,$offset+3,1));
 					if ($len) {
-						$fltemp[] = array("file" => $dat, "offset" => $offset, "size" => $len, "height" => -$len, "ttpage"=>$ttpage);
+						$fltemp[] = array("file" => $dat, "offset" => $offset, "size" => $len, "height" => 24, "ttpage"=>$ttpage);
 						$offset += $len;
 						$this->framesfound++;
 					}
@@ -371,7 +397,7 @@ class ViewdataViewer {
 					}
 				}
 				usort($fltemp,"usortcmp");
-				$this->$frameindex = array_merge($this->frameindex,$fltemp);
+				$this->frameindex = array_merge($this->frameindex,$fltemp);
 				break;
 
 			default:	// actually, there shouldn't be anything arriving here now...
@@ -496,10 +522,11 @@ class ViewdataViewer {
 			case VVTYPE_AXIS:
 				switch($param){
 					case "pagenumber":	// original page number
-						return trim(substr($this->content,$this->frameindex[$framenm]["offset"]+2,10));
+						//return trim(substr($this->content,$this->frameindex[$idx]["offset"]+2,10));
+						return $idx;
 						break;
 					case "route0":
-						// TODO bollox - need the id table reading,,
+						// TODO do we return page number or id number?  frameindex is currently indexec by id number!
 						break;
 					default:
 						return FALSE;
@@ -510,7 +537,8 @@ class ViewdataViewer {
 				$i=0;
 				switch($param){
 					case "pagenumber":	// original page number
-						return trim(substr($this->content,$this->frameindex[$framenm]["offset"]+2,10));
+//						return trim(substr($this->content,$this->frameindex[$idx]["offset"]+2,10));
+						return $idx;
 						break;
 					case "route9":
 						$i++;
@@ -533,7 +561,7 @@ class ViewdataViewer {
 					case "route0":
 						$route="";
 						for ($j=0;$j<5;$j++)
-							$route .= str_pad(dechex(ord($this->content[$this->frameindex[$framenm]["offset"]+34+$j+5*($i % 10)])),2,"0",STR_PAD_LEFT);
+							$route .= str_pad(dechex(ord($this->content[$this->frameindex[$idx]["offset"]+34+$j+5*($i % 10)])),2,"0",STR_PAD_LEFT);
 						$route = 0+$route; // 800FFFFFFF -> 800
 						if ($route == 0) $route = "";
 						return $route;
@@ -687,16 +715,6 @@ class ViewdataViewer {
 				}
 				break;
 
-			case VVTYPE_AXIS_I:
-				$rp = 104;
-			case VVTYPE_AXIS:
-				if ($this->format == VVTYPE_AXIS) $rp = 64;
-				for ($tp=0; $tp<strlen($text) && $rp <920; $tp++) {
-					if (($c = ord($rawtext[$rp]))>127) $c -= 192;
-					$text[$tp] = chr($c);
-					$rp++;
-				}
-				break;
 
 			case VVTYPE_TT:
 				$t="";
@@ -704,22 +722,38 @@ class ViewdataViewer {
 				for ($x=0;$x<min(array(strlen($text),strlen($rawtext)));$x++) {
 					$c=ord($rawtext[$x]);
 					if ($c == 15) {
-						$t .= str_repeat($text[$x+2],ord($text[$x+1]));
+						$t .= str_repeat(chr(ord($rawtext[$x+2])&127),ord($rawtext[$x+1]));
 						$x += 2;
 					} else $t .= chr($c & 127);
 				}
 				$text = str_pad($t,$width*$height," "); // just in case it's short.
 				break;
 
+
+			case VVTYPE_AXIS_I:
+				$tp = $rp = 104;
+			case VVTYPE_AXIS:
+/*				if ($this->format == VVTYPE_AXIS) $rp = 64;
+				for ($tp=0; $tp<strlen($text) && $rp <1024; $tp++) {
+					if (($c = ord($rawtext[$rp]))>127) $c -= 192;
+					$rawtext[$tp] = chr($c);
+					$rp++;
+				}
+*/
+				if ($this->format == VVTYPE_AXIS) $tp = $rp = 64;
+				for (; $rp<strlen($rawtext); $rp++) {
+					if (($c = ord($rawtext[$rp]))>127) $rawtext[$rp] = chr($c-64);
+				}
+
 			case VVTYPE_SVREADER:		// ctrl codes plus colour codes 80-9F
-				$tp = 190;
+				if ($this->format == VVTYPE_SVREADER) $tp = 190;
 			case VVTYPE_JOHNCLARKE:		// ctrl codes
 				if ($this->format == VVTYPE_JOHNCLARKE) $tp = 109;
 			case VVTYPE_RAW:			// ctrl codes
 				if ($this->format == VVTYPE_RAW ) $tp = 0;
 				$cx = 0; $cy=0;
 				$esc=0;
-				while ($tp <min(array(strlen($text),strlen($rawtext)))) {
+				while ($tp <strlen($rawtext)) {
 					$char = ord($rawtext[$tp]);
 					switch(0+$char){
 						case 0 :
@@ -789,7 +823,7 @@ class ViewdataViewer {
 
 
 
-	private function createImage($longdesc, $text, $width = 40, $height = 24, $flags = 0, $thumbnail = 0) {
+	function createImage($longdesc, $text, $width = 40, $height = 24, $flags = 0, $thumbnail = 0) {
 		// ripped right out of vv 0.5.Q
 		// therefore probably needs tidying up considerably.
 

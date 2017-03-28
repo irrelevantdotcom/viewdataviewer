@@ -70,11 +70,45 @@ $vfile->ReturnScreen($idx,$mode)
 		FALSE - no such frame or invalid mode.
 
 
+METADATA
+--------
+
+Attrib\type:| MODE7 | GNOME |  RAW  |ABZTTXT| AXIS  | AXISI |SVREADR| PLUS3 |  EPX  |  EP1  |  TT   | JCC   |
+-------------------------------------------------------------------------------------------------------------
+ flags*     |       |  y    |       |       |       |       |       |       |       |       |       |       |
+ CUG        |       |  y    |       |       |       |       |       |       |       |       |       |       |
+ access     |       |  y    |       |       |       |       |       |       |       |       |       |       |
+ type       |       |  y    |       |       |       |       |       |       |       |       |       |       |
+ count      |       |  y    |       |       |       |       |       |       |       |       |       |       |
+ route 0    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 1    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 2    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 3    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 4    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 5    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 6    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 7    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 8    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route 9    |       |  y    |       |       |       |   y   |       |       |       |       |       |       |
+ route #    |       |       |       |       |       |       |       |       |       |       |       |       |
+ ip         |       |  x    |       |       |       |       |       |       |       |       |       |       |
+ owner*     |       |  x    |       |       |       |       |       |       |       |       |       |       |
+ editcug    |       |  y    |       |       |       |       |       |       |       |       |       |       |
+ pagenumber |       |  x    |       |       |  y    |  y    |       |       |       |       |       |       |
 
 
+y-supported. x-supported but may not be available. e-estimated value.
+*-liable to be a format-specific value.
+pagenumber should be the original page number, not necesarilly the filename.
 
 CHANGELOG
 ---------
 new in vv.class.php 0.6.0   Initial alpha release
 
 new in vv.class.php 0.6.1	Bugfix 'raw' mode.
+
+new in vv.class.php 0.6.2   correct height for EP1 and EPX files.
+						    finish analysis of both Axis formats.
+						    bugfix axis format conversion.
+
+new in vvclassdemo.php 1.0.1 include list of frames within file.
