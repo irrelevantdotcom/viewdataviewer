@@ -9,7 +9,7 @@
  *
  *
  *
- * @version 0.6.3
+ * @version 0.6.8
  * @copyright 2011 Robert O'Donnell
  */
 
@@ -53,40 +53,6 @@ define ("VVFLAG_OVERWRITETOP",512);	// Use supplied top line as line 0
 define ("VVFLAG_RAWFIRST",1024);	// ** parse input as raw first
 define ("VVFLAG_REVEAL",2048);		// do not conceal text
 define ("VVFLAG_TTMODE",4096);		// **force TT mode
-
-// function to return friendly name for a given type number.
-
-function vvtypes($val){
-	switch($val){
-		case VVTYPE_MODE7:
-			return "BBC Mode 7";
-		case VVTYPE_GNOME:
-			return "Autonomic Systems";
-		case VVTYPE_RAW:
-			return "Raw as-transmitted";
-		case VVTYPE_ABZTTXT:
-			return "ABZTtext (JGH)";
-		case VVTYPE_AXIS:
-			return "Axis Microbase";
-		case VVTYPE_SVREADER:
-			return "!SVReader format";
-		case VVTYPE_AXIS_I:
-			return "Axis \"I\" format";
-		case VVTYPE_PLUS3:
-			return "Sinclair PLUS3 extraction";
-		case VVTYPE_EPX:
-			return ".EPX file (Ant)";
-		case VVTYPE_TT:
-			return ".TT file (Ant)";
-		case VVTYPE_JOHNCLARKE:
-			return "JCC Workstation Data";
-		case VVTYPE_EP1:
-			return ".EP1 file (Ant)";
-		default:
-			return FALSE;
-	}
-}
-
 //define ("CACHEDIR","./cache/");
 define ("FONTDIR", dirname( __FILE__  )."/Font/");
 define ("TEMPDIR", dirname( __FILE__  )."/cache/");
@@ -312,7 +278,7 @@ class ViewdataViewer {
 				for ($offset = 0; $offset < strlen($temp); $offset +=9)	{
 					$pn = 0;
 					for ($i = 0; $i<5; $i++) $pn=256*$pn + ord(substr($temp,$offset+$i,1));
-
+					$pn = "$pn" . $temp[$offset+5];
 					$this->frameindex[$pn] = array("file" => $dat,
 					"offset"=>65536*ord($temp[$offset+6])+256*ord($temp[$offset+7])+ord($temp[$offset+8]),
 					"size" => -1,
@@ -361,9 +327,10 @@ class ViewdataViewer {
 				break;
 
 			case VVTYPE_EPX:
-				for ($offset = 4; $offset < $flen; $offset += 1008) {
+				for ($offset = 6; $offset < $flen; $offset += 1008) {
 					if ($flen - $offset > 500) { // lose crap at end of file
-						$this->frameindex[$this->framesfound] = array("file" => $dat, "offset" => $offset, "size" => 1008, "height" =>25);
+						$ttpage = ord(substr($temp,$offset+8,1))+256*ord(substr($temp,$offset+9,1));
+						$this->frameindex[$this->framesfound] = array("file" => $dat, "offset" => $offset, "size" => 1008, "height" =>25, "ttpage" => $ttpage);
 						$this->framesfound++ ;
 					}
 				}
@@ -375,9 +342,10 @@ class ViewdataViewer {
 				$blkcnt=0;
 				$fltemp = array();
 				while($offset < $flen && ord(substr($temp,$offset-($offset%2048)+2047,1))<5){
-					$ttpage=ord(substr($temp,$offset+2,1))+256*ord(substr($temp,$offset+3,1));
+					$ttpage=dechex(ord(substr($temp,$offset+2,1))+256*ord(substr($temp,$offset+3,1)));
+					$subpage=ord(substr($temp,$offset+4,1))+256*ord(substr($temp,$offset+5,1));
 					if ($len) {
-						$fltemp[] = array("file" => $dat, "offset" => $offset, "size" => $len, "height" => 24, "ttpage"=>$ttpage);
+						$fltemp[] = array("file" => $dat, "offset" => $offset, "size" => $len, "height" => 24, "ttpage"=>$ttpage, "subpage"=>$subpage);
 						$offset += $len;
 						$this->framesfound++;
 					}
@@ -583,7 +551,7 @@ class ViewdataViewer {
 
 
 	// return a screen image in some format
-	function ReturnScreen($idx = NULL, $mode = "internal")
+	function ReturnScreen($idx = NULL, $mode = "internal", $size = 0)
 	{
 		if ($idx === NULL) {
 			reset($this->frameindex);
@@ -638,6 +606,24 @@ class ViewdataViewer {
 					break;
 
 
+			case "imagesize":	// get image of a specific size (aka width)
+				// done already?
+				if (array_key_exists('image', $this->frameindex[$idx] )
+				&& array_key_exists($size, $this->frameindex[$idx]['image'])) {
+					return $this->frameindex[$idx]['image'][$size];
+				}
+				// So we ned to crate this size of image. Do we need to load file?
+				if (!array_key_exists("internal", $this->frameindex[$idx])) {
+					if ($this->LoadInternalFrame($idx) === FALSE) return FALSE;
+				}
+				// create native image
+				$type="";
+				$t = $this->createImage(0, $this->frameindex[$idx]["internal"],40,
+					$this->frameindex[$idx]["height"],0,$size);
+				$this->frameindex[$idx]["image"][$size] = $t["image"];
+				$this->frameindex[$idx]["imagetype"] = $t["imagetype"];
+				return $t['image'];
+
 			case "image":
 			case "imagetype":
 				if (!array_key_exists($mode, $this->frameindex[$idx])) {
@@ -652,6 +638,9 @@ class ViewdataViewer {
 					return $t[$mode];
 				} else
 					return $this->frameindex[$idx][$mode];
+				break;
+
+
 
 			default:
 				return FALSE;
@@ -822,10 +811,13 @@ class ViewdataViewer {
 
 
 
+// $thumbnail is now the "size" (width) required... not applicable if textmode set, of course.
 
-	function createImage($longdesc, $text, $width = 40, $height = 24, $flags = 0, $thumbnail = 0) {
+	function createImage($textmode, $text, $width = 40, $height = 24, $flags = 0, $thumbnail = 0) {
 		// ripped right out of vv 0.5.Q
 		// therefore probably needs tidying up considerably.
+
+		$aspect_ratio = 1.2;	// aspect ratio (text pixels are not square.)
 
 		// font sizes. must match that in font files
 		$fwidth = 12;
@@ -833,17 +825,24 @@ class ViewdataViewer {
 		// border in pixels
 		$tborder = 5; // top & bottom
 		$lborder = 12; // left and right
-		// thumbnail size
-		$thumb_w = 100 * $thumbnail;
-		$thumb_h = 100 * $thumbnail;
+
+		// native image size in pixels
+		$pwidth = $width * $fwidth + 2 * $lborder;
+		$pheight = $height * $fheight + 2 * $tborder;
+
+		// required size
+		$thumb_w = $thumbnail / $aspect_ratio;
+		$thumb_h = $pheight * $thumbnail / $pwidth;
+
 		// pause time per frame for flashing
 		$flashdelay[0] = 100;  // flashing text visible, concealed text hidden
 		$flashdelay[1] = 33;   // flashing text hidden,  concealed text hidden
 
+
 		$longtext = "";
 
 
-		if (!$longdesc) { // don't bother for text mode
+		if (!$textmode) { // don't bother for text mode
 			// read fonts
 			$fontnum = imageloadfont(FONTDIR . "vvttxt.gdf");
 			$fontnumtop = imageloadfont(FONTDIR . "vvttxtop.gdf");
@@ -853,13 +852,14 @@ class ViewdataViewer {
 				return FALSE;
 			}
 
-			// image size in pixels
-			$pwidth = $width * $fwidth + 2 * $lborder;
-			$pheight = $height * $fheight + 2 * $tborder;
-			// create canvas
+			// create working canvas
 			$my_img = imagecreate($pwidth, $pheight);
+			// and one for the final image
 			if ($thumbnail) {
-				$thumb_img=ImageCreateTrueColor($thumb_w,$thumb_h);
+				$ar_img = ImageCreateTrueColor($thumbnail, $thumb_h);
+			} else {
+				$ar_img = ImageCreateTrueColor($pwidth * $aspect_ratio, $pheight);
+
 			}
 
 			// define the colours
@@ -992,8 +992,8 @@ class ViewdataViewer {
 				} else { // char>= 32
 					if ($graphics) {
 						if ($char & 32) { // actual graphics and not "blast through caps"
-							if ($longdesc) {
-								if ($longdesc == 2 && $char>32) {
+							if ($textmode) {
+								if ($textmode == 2 && $char>32) {
 									$char = 42;	// star
 								} else $char=32;  // ignore graphics in text mode
 							} else {
@@ -1018,9 +1018,9 @@ class ViewdataViewer {
 					if ($flashcycle == 1) $char = 32;
 				}
 				// concealed text does not display
-				if (($flags & VVFLAG_REVEAL )==0 && $conceal == 1 && !$longdesc) $char = 32;
+				if (($flags & VVFLAG_REVEAL )==0 && $conceal == 1 && !$textmode) $char = 32;
 				// only bottom of double height chars show up on line below a d.h character
-				if ($doublebottom && (!$double || $longdesc)) $char = 32;
+				if ($doublebottom && (!$double || $textmode)) $char = 32;
 				// offset to get graphics characters within fontfile
 				// switch to alternate font files for double height
 				if ($double) {
@@ -1032,7 +1032,7 @@ class ViewdataViewer {
 				} else $fnum = $fontnum;
 
 				// OK we now have everything we need to write a character!
-				if ($longdesc) {
+				if ($textmode) {
 					if ($char == 32) {
 						$longtext .= "&nbsp;";
 					} else $longtext .= chr($char);
@@ -1051,7 +1051,7 @@ class ViewdataViewer {
 				if ($cx >= $width) {
 					$cx = 0;
 					$cy++;
-					if ($longdesc) {
+					if ($textmode) {
 						$longtext .= "<br />";
 					}
 					if ($cy >= $height) {
@@ -1078,76 +1078,117 @@ class ViewdataViewer {
 				}
 				$tp++;
 			} // while textpointer
-			if (!$longdesc) {
-
+			if (!$textmode) {
+				// resize native image into final size
 				if ($thumbnail) {
-					imagecopyresampled($thumb_img,$my_img,0,0,0,0,
-						$thumb_w,$thumb_h,$pwidth,$pheight);
+					imagecopyresampled($ar_img,$my_img,0,0,0,0,
+						$thumb_w * $aspect_ratio, $thumb_h, $pwidth, $pheight);
 
-					if ($flasher) {
+					if ($flasher) {	// save as temp file for animating
 						$fname = tempnam(TEMPDIR,"vv"); //TEMPDIR . $cachepage . "_" . $flashcycle . ".gif";
 						$frames[] = $fname;
 						$framed[] = $flashdelay[$flashcycle];
-						imagegif($thumb_img, $fname);
+						imagegif($ar_img, $fname);
 					}
 				} else {
+					imagecopyresampled($ar_img,$my_img,0,0,0,0,
+						$pwidth * $aspect_ratio, $pheight, $pwidth, $pheight);
 
-					if ($flasher) {
+					if ($flasher) { // save as temp file for animating
 						$fname = tempnam(TEMPDIR,"vv"); //$fname = TEMPDIR . $cachepage . "_" . $flashcycle . ".gif";
 
 						$frames[] = $fname;
 						$framed[] = $flashdelay[$flashcycle];
-						imagegif($my_img, $fname);
+						imagegif($ar_img, $fname);
 					}
 				}
 			}
-		} while (!$longdesc && $flasher > 0 && $flashcycle < 1);
+		} while (!$textmode && $flasher > 0 && $flashcycle < 1);
 		// display image
-		if ($longdesc) {
-//			header("Content-type: text/html");
-			$longtext = str_replace(array("#","_","[","]","{","\\","}","~","`"),array("&pound;","#","&laquo;","&raquo;","&frac14;","&frac12;","&frac34;","&divide;","-") , $longtext);
-
+		if ($textmode) {
+			$longtext = str_replace(array("#","_","[","]","{","\\","}","~","`"),
+				array("&pound;","#","&laquo;","&raquo;","&frac14;","&frac12;","&frac34;","&divide;","-") , $longtext);
 			return $longtext;
-/*			if ($longdesc == 2) echo "<pre>";
-			echo $longtext;
-			if ($longdesc == 2) echo "</pre>";
-*/
-		} else {
-			if (($flasher == 0)) {
-//				header("Content-type: image/png");
-				if ($thumbnail) {
-//					imagepng($thumb_img);
-					return array("image"=>$thumb_img, "imagetype"=>"png");
-				} else {
-//					imagepng($my_img);
-					return array("image"=>$my_img, "imagetype"=>"png");
-				}
-			} else {
-				$gif = new GIFEncoder ($frames,
-				    $framed,
-				    0,
-				    2,
-				    1, 2, 3,
-				    "url"
-				    ); // 1,2,3 is the transparent colour; this one won't be in the image!
-				$image = $gif->GetAnimation ();
-				// kill temporary files
-				foreach ($frames as $fnam) unlink($fnam);
-
-//				header ('Content-type:image/gif');
-//				echo $image;
-				return array("image"=>$image, "imagetype"=>"gif");
-			}
-			// clean closedown
-			for ($i = 0;$i < 8;$i++) imagecolordeallocate($my_img, $colour[$i]);
-			imagedestroy($my_img);
-			if ($thumbnail) {
-				imagedestroy($thumb_img);
-			}
 		}
+		if ($flasher == 0) {
+			// simple static image
+			return array("image"=>$ar_img, "imagetype"=>"png");
+		}
+		// animate the (two!) gif frames.
+		$gif = new GIFEncoder ($frames,	// list of frames
+		    $framed,					// list of delays between frames
+		    0,
+		    2,
+		    1, 2, 3,
+		    "url"
+		    ); // 1,2,3 is the transparent colour; this one won't be in the image!
+		$image = $gif->GetAnimation ();
+		// kill temporary files
+		foreach ($frames as $fnam) unlink($fnam);
 
+		return array("image"=>$image, "imagetype"=>"gif");
 	}
 
+
+	// function to return friendly name for a given type number.
+
+	public function vvtypes($val){
+		switch($val){
+			case VVTYPE_MODE7:
+				return "BBC Mode 7";
+			case VVTYPE_GNOME:
+				return "Autonomic Systems";
+			case VVTYPE_RAW:
+				return "Raw as-transmitted";
+			case VVTYPE_ABZTTXT:
+				return "ABZTtext (JGH)";
+			case VVTYPE_AXIS:
+				return "Axis Microbase";
+			case VVTYPE_SVREADER:
+				return "!SVReader format";
+			case VVTYPE_AXIS_I:
+				return "Axis \"I\" format";
+			case VVTYPE_PLUS3:
+				return "Sinclair PLUS3 extraction";
+			case VVTYPE_EPX:
+				return ".EPX file (Ant)";
+			case VVTYPE_TT:
+				return ".TT file (Ant)";
+			case VVTYPE_JOHNCLARKE:
+				return "JCC Workstation Data";
+			case VVTYPE_EP1:
+				return ".EP1 file (Ant)";
+			default:
+				return FALSE;
+		}
+	}
+
+
+
+	// function to return mime type for a given type number.
+
+	public function vvmimetypes($val){
+		switch($val){
+			case VVTYPE_GNOME:
+				return "videotex/gnome";
+			case VVTYPE_MODE7:
+			case VVTYPE_ABZTTXT:
+				return "videotex/screen";
+			case VVTYPE_RAW:
+				return "videotex/stream";
+			case VVTYPE_AXIS:
+			case VVTYPE_SVREADER:
+			case VVTYPE_AXIS_I:
+			case VVTYPE_PLUS3:
+			case VVTYPE_EPX:
+			case VVTYPE_TT:
+			case VVTYPE_JOHNCLARKE:
+			case VVTYPE_EP1:
+				return "videotex/screen-multiple";
+			default:
+				return FALSE;
+		}
+	}
 
 }
 
