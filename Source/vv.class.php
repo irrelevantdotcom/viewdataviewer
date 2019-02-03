@@ -15,7 +15,7 @@
  */
 
 // TODO: BuildIndex AXIS frame types.
-require_once('vv.class.php');// TODO: check that all routines check a valid frame has been loaded!
+// TODO: check that all routines check a valid frame has been loaded!
 // TODO: finish metadata routines for all frame formats
 // TODO: +try and identify page number from text on page. remember teletext!
 // TODO: +try and find any dates within text on page. multiple formats!
@@ -639,8 +639,12 @@ class ViewdataViewer {
 				$subpage = 0;
 				for ($offset = 0x76; $offset < $flen; $offset += 970) {
 					if ($flen - $offset > 500) { // lose crap at end of file
-						$subpage = ord($temp{$offset + 0x3c2});
+
+//						$date = $this->guess_date(substr($temp,$offset,40), '1900');
+
+						$subpage = ord($temp{$offset + 0x3c2}) + 10 * ord($temp{$offset + 0x3c3});
 						$this->frameindex[$this->framesfound] = array("file" => $dat, "offset" => $offset,
+//							"date" => $date,
 							"size" => 960, "height" =>24, "ttpage" => $ttpage, 'subpage' => substr('0000' . $subpage, -4));
 						$this->framesfound++ ;
 						$subpage++;
@@ -1125,6 +1129,9 @@ class ViewdataViewer {
 					case "pagenumber":	// original page number
 						return array($this->frameindex[$idx]["ttpage"],(string)$this->frameindex[$idx]["subpage"]); //	(string)substr('0000' . (string)$this->frameindex[$idx]["subpage"],-4));
 						break;
+				}
+				if (isset($this->frameindex[$idx][$param])) {
+					return $this->frameindex[$idx][$param];
 				}
 			} // switch
 
@@ -1982,7 +1989,8 @@ class ViewdataViewer {
 	 			return ".TTX (25x40 n*1000B)";
 	 		case VVTYPE_GNOMEVAR:
 	 			return "Sequential Gnomeish files (Rob)";
-	 			break;
+			case VVTYPE_VTP:
+				return ".VTP VTPlus format";
 
 			default:
 				return FALSE;
@@ -2242,4 +2250,14 @@ function zeropad($num, $lim)
 	return (strlen($num) >= $lim) ? $num : $this->zeropad("0" . $num, $lim);
 }
 
+/*	function guess_date($s, $y = '1970 '){
+		$dt = false;
+		for ($l = 8; $l < 40 && $l <= strlen($s); $l++) {
+			$td = strtotime( substr($s, 0-$l));
+			if ($td != false)
+				$dt = $td;
+		}
+		return $dt;
+	}
+*/
 }
