@@ -9,12 +9,13 @@
  *
  *
  *
- * @version 0.6.8
+ * @version 0.7.4
+ * @version 0.7.4
  * @copyright 2011 Robert O'Donnell
  */
 
 // TODO: BuildIndex AXIS frame types.
-// TODO: check that all routines check a valid frame has been loaded!
+require_once('vv.class.php');// TODO: check that all routines check a valid frame has been loaded!
 // TODO: finish metadata routines for all frame formats
 // TODO: +try and identify page number from text on page. remember teletext!
 // TODO: +try and find any dates within text on page. multiple formats!
@@ -22,7 +23,7 @@
 // TODO: routine to retrieve text from part of frame
 // TODO: store image in $frameindex rather than creating it every time.
 //		(how many times will one want to fetch the same image in a session?)
-// TODO: html text mode
+// TODO: html encoded text mode
 
 // some useful constants.
 // (all these defns were hard coded prior to creation of this file!)
@@ -39,6 +40,14 @@ define ("VVTYPE_EPX",9);
 define ("VVTYPE_TT",10);
 define ("VVTYPE_JOHNCLARKE",11);
 define ("VVTYPE_EP1",12);
+define ("VVTYPE_VTF",13);		// Quantec QMX - not finished
+define ("VVTYPE_G7JJF",14);		// http://g7jjf.com/teletext.htm. Is actually raw data stream....
+define ("VVTYPE_TFLINKS",15);	// Pages grabbed from uniquecodeanddata
+define ("VVTYPE_TTI",16);		// TTI and TTIx - inserter formats
+define ("VVTYPE_24x40",17);		// TTX format.
+define ("VVTYPE_25x40",18);		// TTX format.
+define ('VVTYPE_GNOMEVAR',19);	// varient of gnome files found in some of rob's files
+define ('VVTYPE_VTP',20);		// VTPlus files.
 
 // flags as used by vv.php as modifiers to the format number.
 //   Most of these (probably those marked **) are redundant.
@@ -57,10 +66,9 @@ define ("VVFLAG_TTMODE",4096);		// **force TT mode
 define ("FONTDIR", dirname( __FILE__  )."/Font/");
 define ("TEMPDIR", dirname( __FILE__  )."/cache/");
 
-include "GIFEncoder.class.php";
+include_once "GIFEncoder.class.php";
 
 class ViewdataViewer {
-
 
 	// no need for external code to access these
 	private $content;		// raw data.
@@ -97,147 +105,192 @@ class ViewdataViewer {
 	function LoadData($data, $hint = 0, $fsp = "") {
 		$this->content = $data;
 		$this->sourcefile = "";
-		if ($this->AnalyseFormat($hint, $fsp)) {
-			return TRUE;
-		} else {
-			return FALSE;
-		}
+
+		return $this->AnalyseFormat($hint, $fsp);
+//		if ($this->AnalyseFormat($hint, $fsp)) {
+//			return TRUE;
+//		} else {
+//			return FALSE;
+//		}
 	}
 
 
 
 
 	// analyse and return format of data
-	private function AnalyseFormat($hint = 0, $fsp = "")#
+	private function AnalyseFormat($hint = 0, $fsp = "", $alwaysguess = false)
 	{
 //		global $this->content;
 //		global $this->format;
 //		global $this->framesfound;
 
-		$format = 0;  // do we use $hint here or assume we know best?
-		$fperfile = -1;
+//echo "hint $hint ";
+		if ($hint && !$alwaysguess ) {
+			$format = $hint;
+		} else {
+			$format = 0;  // do we use $hint here or assume we know best?
+			$fperfile = -1;
 
-// first do the easy ones
+			// first do the easy ones
 
-// filename based
-		if ($format == 0 && (strtolower(substr($fsp,-4,4))==".pic")) {
-			$format += VVTYPE_JOHNCLARKE;
-		}
-		if ($format == 0 && (strtolower(substr($fsp,-3,3))==".tt")) {
-			$format += VVTYPE_TT;
-		}
-		if ($format == 0 && (strtolower(substr($fsp,-4,4))==".ep1")) {
-			$format += VVTYPE_EP1;
-		}
-		if ($format == 0 && (strtolower(substr($fsp,-4,4))==".epx")) {
-			$format += VVTYPE_EPX;
-		}
-
-// magic strings
-		if ($format == 0 && substr($this->content,0,3) == "JWC") {
-			$format += VVTYPE_EPX;
-		}
-		if ($format == 0 && substr($this->content,0,8) == "PLUS3DOS") {
-			// Ripped from a spectrum disc. assume it's a viewer file
-			// as I don't have anything else yet!
-			$format += VVTYPE_PLUS3;
-		}
-
-		if ($format == 0 && strlen($this->content) >= 5120 ) {
-			if ( substr($this->content,4096,2) == chr(0)."F"
-				&& substr($this->content,4098,10) == substr($this->content,16,10)) { // Axis database
-				$format += VVTYPE_AXIS;
+			// filename based
+			if ($format == 0 && (strtolower(substr($fsp,-4,4))==".pic")) {
+				$format += VVTYPE_JOHNCLARKE;
 			}
-		}
-		if ($format == 0 && strlen($this->content) >= 5120 ) {
-			if ( substr($this->content,4096,2) == chr(240)."i"
-				&& substr($this->content,4098,10) == substr($this->content,16,10)) { // Axis "i" database
-				$format += VVTYPE_AXIS_I;
+			if ($format == 0 && (strtolower(substr($fsp,-3,3))==".tt")) {
+				$format += VVTYPE_TT;
 			}
-		}
-		if ($format == 0 && ($this->content[21] == "Y" || $this->content[21] == "N") &&
-			($this->content[22] == "Y" || $this->content[22] == "N") && ($this->content[10] == "Y" || $this->content[10] == "N")) {  // !SVreader
-			$format += VVTYPE_SVREADER;
-		}
-
-// some reasonable assumptions
-		if ($format == 0) {
-			if (strpos(substr($this->content,0,920),chr(13).chr(10)) !== FALSE ||
-			strpos(substr($this->content,0,920),chr(10).chr(13)) !== FALSE ) {
-				$format += VVTYPE_RAW;
+			if ($format == 0 && (strtolower(substr($fsp,-4,4))==".ep1")) {
+				$format += VVTYPE_EP1;
 			}
-		}
-		if ($format == 0) {
-			$char = ord($this->content[920]); // ABVTtxt version byte
-			$routing = substr($this->content, 936, 64); // scan routing area for 000000
-			if (($char == 13 || ($char > 1 && $char < 6)) && strpos($routing, chr(0) . chr(0) . chr(0)) !== false) {
-				$format += VVTYPE_ABZTTXT; // ABZTtxt
+			if ($format == 0 && (strtolower(substr($fsp,-4,4))==".epx")) {
+				$format += VVTYPE_EPX;
 			}
-		}
+			if ($format == 0 && (strtolower(substr($fsp,-4,4))==".vtf")) {
+				$format += VVTYPE_VTF;
+			}
 
-
-// now we can only guess a format.  We were given a hint?
-
-		if ($format == 0 && $hint > 0) $format += $hint;		// accept hint now.
-
-// now the "let's guess" ones ...
-
-		if ($format == 0) {
-			$notsm=FALSE;
-			$defsm=FALSE;
-			// look for a SofMac route table with an empty route in it ("*")
-			for ($i=0;$i<10 && $ntsm == FALSE;$i++) {
-				$route=substr($this->content,14+9*$i,9);
-				if ($route == "*        ") {
-					$defsm=TRUE;
+			if ($format == 0 && (strtolower(substr($fsp,-4,4))==".ttx")) {
+				if (substr($this->content,0,20) == substr($this->content,1000,20)) {
+					$format += VVTYPE_25x40;
+				} else {
+					$format += VVTYPE_24x40;
 				}
+			}
+
+			if ($format == 0 && (strtolower(substr($fsp,-4,4))==".dat") &&
+			substr($this->content,0,128) == str_repeat(chr(0),128)) {
+				$format += VVTYPE_G7JJF;
+			}
+
+			if ($format == 0 && (strtolower(substr($fsp,-4,4))==".tti" ||
+			strtolower(substr($fsp,-5,5))==".ttix")) {
+				$format += VVTYPE_TTI;
+			}
+
+			// magic strings
+			if ($format == 0 && strpos($this->content, 'DOCTYPE html') && strpos($this->content,'/#0:')) {
+				$format += VVTYPE_TFLINKS;
+			}
+			if ($format == 0 && ((strtolower(substr($fsp,-4,4))==".vtp"
+				|| substr($this->content,0,3) == 'VTP'))) {
+				$format += VVTYPE_VTP;
+			}
+
+
+			if ($format == 0 && substr($this->content,0,3) == "JWC") {
+				$format += VVTYPE_EPX;
+			}
+			if ($format == 0 && substr($this->content,0,8) == "PLUS3DOS") {
+				// Ripped from a spectrum disc. assume it's a viewer file
+				// as I don't have anything else yet!
+				$format += VVTYPE_PLUS3;
+			}
+
+			if ($format == 0 && strlen($this->content) >= 5120 ) {
+				if ( substr($this->content,4096,2) == chr(0)."F"
+				&& substr($this->content,4098,10) == substr($this->content,16,10)) { // Axis database
+					$format += VVTYPE_AXIS;
+				}
+			}
+			if ($format == 0 && strlen($this->content) >= 5120 ) {
+				if ( substr($this->content,4096,2) == chr(240)."i"
+				&& substr($this->content,4098,10) == substr($this->content,16,10)) { // Axis "i" database
+					$format += VVTYPE_AXIS_I;
+				}
+			}
+			if ($format == 0 && ($this->content[21] == "Y" || $this->content[21] == "N") &&
+			($this->content[22] == "Y" || $this->content[22] == "N") && ($this->content[10] == "Y" || $this->content[10] == "N")) {  // !SVreader
+				$format += VVTYPE_SVREADER;
+			}
+
+			// now we can only guess a format.  We were given a hint?
+
+			if ($format == 0 && $hint > 0) $format += $hint;		// accept hint now.
+
+			// some reasonable assumptions
+			if ($format == 0) {
+				if (strpos(substr($this->content,0,920),chr(13).chr(10)) !== FALSE ||
+				strpos(substr($this->content,0,920),chr(10).chr(13)) !== FALSE ) {
+					$format += VVTYPE_RAW;
+				}
+			}
+			if ($format == 0) {
+				$char = ord($this->content[920]); // ABVTtxt version byte
+				$routing = substr($this->content, 936, 64); // scan routing area for 000000
+				if (($char == 13 || ($char > 1 && $char < 6)) && strpos($routing, chr(0) . chr(0) . chr(0)) !== false) {
+					$format += VVTYPE_ABZTTXT; // ABZTtxt
+				}
+			}
+
+
+
+			// now the "let's guess" ones ...
+
+			if ($format == 0) {
+				$notsm=FALSE;
+				$defsm=FALSE;
+				// look for a SofMac route table with an empty route in it ("*")
+				for ($i=0;$i<10 && $notsm == FALSE;$i++) {
+					$route=substr($this->content,14+9*$i,9);
+					if ($route == "*        ") {
+						$defsm=TRUE;
+					}
 /*					$fsp =strpos($route," ");
    $rln = strlen(rtrim($route));
    if ($fsp == 0 || ($rln < 9 && $fsp != $rln+1)) {
    $notsm=TRUE; $defsm=FALSE;
    } */
-			}
-			if ($defsm) {
-				$format += VVTYPE_GNOME;
-			} else if (!$notsm) {
-				if (strpos(substr($this->content,0,16),chr(0).chr(0)) !== FALSE) {
+				}
+				if ($defsm) {
 					$format += VVTYPE_GNOME;
-				} else if (chr(127 & ord($this->content[143])) == "p" &&
-				is_numeric(chr(127 & ord($this->content[142])))) {
-					$format += VVTYPE_GNOME; // found a 0p in the right place for a gnome host frame
-				} else {
-					for ($i=3; $i<104 && $notsm == FALSE; $i++) {
-						if ($this->content[$i]<" " || $this->content[$i] > "z") $notsm = TRUE;
+				} else if (!$notsm) {
+					if (strpos(substr($this->content,0,16),chr(0).chr(0)) !== FALSE) {
+						$format += VVTYPE_GNOME;
+					} else if (chr(127 & ord($this->content[143])) == "p" &&
+					is_numeric(chr(127 & ord($this->content[142])))) {
+						$format += VVTYPE_GNOME; // found a 0p in the right place for a gnome host frame
+					} else {
+						for ($i=3; $i<104 && $notsm == FALSE; $i++) {
+							if ($this->content[$i]<" " || $this->content[$i] > "z") $notsm = TRUE;
+						}
+						if (!$notsm) $format += VVTYPE_GNOME; //likely
 					}
-					if (!$notsm) $format += VVTYPE_GNOME; //likely
 				}
 			}
-		}
 
+			if ($format == VVTYPE_GNOME && strlen($this->content >= 2048)) {
+				$format = VVTYPE_GNOMEVAR;
+			}
 
-		if ($format == 0) {
-			$cnt = 0;
-			for ($i=0; $i<1024; $i+=40) {
-				$c = ord($this->content[$i]) & 127;
-				$d = ord($this->content[$i+1]) & 127;
-				if ( $c < 9 && $c != 0 && $d > 8) {	// colour code followed by non-colour code
-					$cnt++;
+			if ($format == 0) {
+				$cnt = 0;
+				for ($i=0; $i<1024; $i+=40) {
+					$c = ord($this->content[$i]) & 127;
+					$d = ord($this->content[$i+1]) & 127;
+					if ( $c < 9 && $c != 0 && $d > 8) {	// colour code followed by non-colour code
+						$cnt++;
+					}
 				}
+				if ($cnt >3) {	// more than three lines start with a colour?
+					$format += VVTYPE_MODE7;
+				}
+
 			}
-			if ($cnt >3) {	// more than three lines start with a colour?
-				$format += VVTYPE_MODE7;
-			}
+
 		}
 
 
 
 
 		if ($format == 0) {	// still couldn't decide
+//			echo "no format";
 			return FALSE;
 		} else {
 			$this->format = $format;
 
 			if (!$this->BuildIndex()) {
+//				echo "error in build index";
 				return FALSE;
 			}
 			return TRUE;
@@ -259,17 +312,73 @@ class ViewdataViewer {
 			case VVTYPE_RAW:
 			case VVTYPE_SVREADER:
 			case VVTYPE_GNOME:
+			case VVTYPE_GNOMEVAR:
 			case VVTYPE_EP1;
 			$h = 24;
 			case VVTYPE_MODE7:
-				if ($this->format == VVTYPE_MODE7 || $this->format == VVTYPE_EP1) $h = 25;
-				$this->framesfound = 1;
-				$this->frameindex[0] = array("file" => $dat, "offset" =>0, "size" => strlen($temp), "height" => $h);
-				break;
 
-			case VVTYPE_ABZTTXT:
-				$this->framesfound = 1;
-				$this->frameindex[0] = array("file" => $dat, "offset" =>0, "size" => min(array(920,strlen($temp))), "height" => 23);
+				$size = strlen($temp);
+				if ($size < 2 * 960) {
+					$h = (int) $size / 40;
+					$this->framesfound = 1;
+				} else {
+					if ($this->format == VVTYPE_GNOME or $this->format == VVTYPE_GNOMEVAR) {
+						$size = 1024;
+						$h = 23;
+					} else  {
+						// deduce image height
+						$nl = $size % 40;	// number of lines in file
+						if ($nl % 24 == 0) { // exact multiple of 24 lines
+							$h = 24;
+						} else if ($nl % 23 == 0) {
+							$h = 23;
+						} else if ($nl % 25 == 0) {
+							$h = 25;
+						} else $h = 24;		// most obvious possibility
+						$size = $h * 40;
+					}
+				}
+
+				for ($offset = 0; $offset < strlen($this->content); $offset+= $size) {
+
+
+					// try and find page number
+					if ($this->format == VVTYPE_GNOME || $this->format = VVTYPE_GNOMEVAR) {
+						$pn = '';
+						for ($i = 129; $i < 139; $i++) {
+							$pn .=  chr(ord($this->content{$offset + $i}) & 127);
+						}
+						$pn = trim($pn);
+						$subpage = substr($pn,-1);
+						$page = substr($pn,0,strlen($pn)-1);
+					} else {
+
+						$matches = array();
+						// grab top line stripping top bits.
+						$tl = '';
+						for ($i=0; $i<40; $i++) {
+							$tl .= chr(ord($this->content{$offset + $i}) & 127);
+						}
+						if (preg_match('/[0-9]{1,9}[a-z]/',$tl,$matches,PREG_OFFSET_CAPTURE)) {
+							//print_r($matches);
+							$page = substr($matches[0][0],0,strlen($matches[0][0]-1));
+							$subpage = substr($matches[0][0],-1);
+						} else if (preg_match('/[0-9A-F]{3}/',$tl,$matches,PREG_OFFSET_CAPTURE)) {
+							//print_r($matches);
+							$page = $matches[0][0];
+							if ($tl{$matches[0][1] + 3} == '/') {
+								$subpage = '00' . substr($tl,$matches[0][1] + 4,2);
+							}
+						} else  {// Unable to find a page number, use 000. (Not found in real teletext.)
+							$page = '000';
+							$subpage = '';
+						}
+					}
+					if ($this->format == VVTYPE_MODE7 || $this->format == VVTYPE_EP1) $h = 25;
+					$this->framesfound += 1;
+					$this->frameindex[] = array("file" => $dat, "offset" =>$offset, "size" => $size, "height" => $h,
+							'ttpage' => $page, 'subpage' => $subpage);
+				}
 				break;
 
 
@@ -279,41 +388,228 @@ class ViewdataViewer {
 					$pn = 0;
 					for ($i = 0; $i<5; $i++) $pn=256*$pn + ord(substr($temp,$offset+$i,1));
 					$pn = "$pn" . $temp[$offset+5];
+					$fo = 65536*ord($temp[$offset+6])+256*ord($temp[$offset+7])+ord($temp[$offset+8]);
+					$page = substr($this->content,$fo,9);
+					if ($page == "000000000") {
+						$page = "0";
+					} else {
+						$page = ltrim($page,'0');
+					}
+					$subpage = substr($this->content,$fo+9,1);
 					$this->frameindex[$pn] = array("file" => $dat,
-					"offset"=>65536*ord($temp[$offset+6])+256*ord($temp[$offset+7])+ord($temp[$offset+8]),
+					"offset"=>$fo,
 					"size" => -1,
-					"height"=>24);
+					"height"=>24,
+					"ttpage"=>$page,
+					"subpage"=>$subpage);
 					$this->framesfound++ ;
 				}
 				break;
+
+			case VVTYPE_TTI:
+				$ol = false;		// no text found
+				$meta = array();
+				$tla = array();
+				$lines =  preg_split ('/$\R?^/m', $this->content);
+				$ptr = 0;
+				foreach ($lines as $l){
+//echo "$line<br />"					;
+					if (trim($l) == '') {
+						continue;
+					}
+
+					$cc = substr($l,0,2);
+					$par = substr($l,3);
+					// have we seen lines but not in a line now? must be another page so save the index.
+					if ($ol && $cc != 'OL' && $cc != 'FL') {
+						$this->frameindex[$this->framesfound] = array_merge($meta, array("file" => $dat,
+								"offset"=> $ptr,
+								"size" => 40+40*max(array_keys($tla)),	// not blocksize, this is size of image section.
+								"height"=> 1+max(array_keys($tla)),
+								"id"=>$this->framesfound,
+								"ttpage" => $page,
+								"subpage" => $subpage,
+								"content" => $tla ));
+						$this->framesfound++ ;
+
+						$meta = $tla = array();
+						$ol = false;
+					}
+
+					switch(substr($l,0,2)){
+						case 'PN':
+							$page = substr($l,3,3);
+							if (strlen($l) > 6) {
+								$subpage = substr('0000' . substr($l,6),-4);
+							}
+							break;
+						case 'SC':
+							$subpage = substr('0000' . $par,-4);
+							break;
+						case 'CT':
+							$meta['cycletime'] = $par;
+							break;
+						case 'DE':
+							$meta['description'] = $par;
+							break;
+						case 'PS':
+							$meta['mrg-ps'] = $par;
+							$meta['language'] = ($par & 896) / 128;
+							break;
+						case 'OL':
+							$ol = true;
+							$raw = substr($l,strpos($l,',',3)+1);
+							$txt = '';																																		;
+							for ($i = 0; $i < strlen($raw); $i++) {
+								$char = ord($raw{$i}) & 127;
+								if ($char == 16) {
+									$char = 13;
+								}
+								if ($char == 27) {
+									$char = (ord($raw{$i+1}) & 127) - 64;
+									$i++;
+								}
+								$txt .= chr($char);
+							}
+							$tla[0|$par] = $txt;
+							break;
+						case 'FL':
+							$links = explode(',',$par);
+							if (count($links) == 6) {
+								for ($i = 0; $i < 6; $i++) {
+									if (hexdec($links[$i]) < 256) {	 #100
+										$links[$i] = '';
+									}
+								}
+								$meta['red'] = $links[0];
+								$meta['green'] = $links[1];
+								$meta['yellow'] = $links[2];
+								$meta['blue'] = $links[3];
+								$meta['link4'] = $links[4];
+								$meta['index'] = $links[5];
+							}
+							break;
+					} // switch
+					$ptr += strlen($l)+2;
+				}
+
+				if ($ol) {
+					$this->frameindex[$this->framesfound] = array_merge($meta, array("file" => $dat,
+							"offset"=> $ptr,
+							"size" => 40+40*max(array_keys($tla)),	// not blocksize, this is size of image section.
+							"height"=> 1+max(array_keys($tla)),
+							"id"=>$this->framesfound,
+							"ttpage" => $page,
+							"subpage" => $subpage,
+							"content" => $tla));
+//var_dump($this->frameindex[$this->framesfound]);
+					$this->framesfound++ ;
+				}
+				break;
+
+			case VVTYPE_ABZTTXT:
+				$height = 23;
+				$blocksize = 1024;
+			case VVTYPE_25x40:
+				if ($this->format == VVTYPE_25x40) {
+					$height = 25;
+					$blocksize = 1000;
+				}
+			case VVTYPE_24x40:
+				if ($this->format == VVTYPE_24x40) {
+					$height = 24;
+					$blocksize = 960;
+				}
+				$index="";
+				$data=""; //substr($temp,0,4096);
+				$oldpage = '';
+				for ($h = 0; $h < strlen($this->content); $h = $h+$blocksize) {
+					$subpage = '';
+					$matches = array();
+
+					$tl = '';
+					for ($i=0; $i<40; $i++) {
+						$tl .= chr(ord($this->content{$h+$i}) & 127);
+					}
+					if (preg_match('/[0-9]{1,9}[a-z]/',$tl,$matches,PREG_OFFSET_CAPTURE)) {
+						//print_r($matches);
+						$page = substr($matches[0][0],0,strlen($matches[0][0]-1));
+						$subpage = substr($matches[0][0],-1);
+					} else
+					if (preg_match('/[0-9A-F]{3}/',$tl,$matches)) {
+						//print_r($matches);
+						$page = $matches[0];
+					} else
+					if (preg_match('/[0-9A-F]{3}/',$this->sourcefile,$matches)) {
+						//print_r($matches);
+						$page = $matches[0];
+						if ($page == $oldpage) {
+							$subpage++;
+						} else {
+							$oldpage = $page;
+							$subpage = 1;
+						}
+					} else {
+						// grab top line stripping top bits.
+						$page = '000';
+					}
+
+					if ($subpage == '') {
+						if (substr($tl,0,5) != '     ') {
+							$subpage = $this->zeropad(dechex(ord($this->content{$h+5})),2) . $this->zeropad(dechex(ord($this->content{$h+4})),2);
+							$this->content = substr_replace($this->content, '        ', $h, 8);
+						} else {
+							// we don't have real subpage information, so just use a counter.
+							if ($page == $oldpage) {
+								$subpage++;
+							} else {
+								$oldpage = $page;
+								$subpage = 1;
+							}
+						}
+					}
+
+
+					$this->frameindex[$this->framesfound] = array("file" => $dat,
+							"offset"=> $h,
+							"size" => 40*$height,	// not blocksize, this is size of image section.
+							"height"=> $height,
+							"id"=>$this->framesfound,
+							"ttpage" => $page,
+							"subpage" => $subpage );
+					$this->framesfound++ ;
+				}
+
+				break;
+
 
 			case VVTYPE_AXIS:
 			case VVTYPE_AXIS_I:
 				$index="";
 				$data=""; //substr($temp,0,4096);
-				if (strlen($temp)>356352) {
-					for ($j=0; $j<strlen($temp); $j+=352256) {
-						$data .= substr($temp,$j,4096);
-					}
-				}
-				for ($j=0; $j<strlen($data); $j+=4096) {
-					for ($i=16;  $i<4096; $i+=12) {
-						$id = ord($data[10+$i+$j])+256*ord($data[11+$i+$j]);
+
+				for ($h = 0; $h < strlen($this->content); $h = $h+352256) {
+					for ($i = 16; $i < 4096; $i = $i + 12) {
+						$id = 256 * ord($this->content[$h+$i+10]) + ord($this->content[$h+$i+11]);
+						$page = trim(substr($this->content,$h+$i,10));
+						$subpage = substr($page,-1);
+						$page = substr($page,0,strlen($page)-1);
 						$offset = 4096 + 1024 * ($this->framesfound);
-						$offset += 4096*(int)($this->framesfound /352256);	// TODO 2012; i think this is wrong.
+						$offset += 4096*(int)($this->framesfound /352256);
 						if ($id) {
-							$this->frameindex[trim(substr($data,$i+$j,10))] = array("file" => $dat,
+							$this->frameindex[$page.$subpage] = array("file" => $dat,
 							"offset"=> $offset,
 							"size" => 1024,
 							"height"=>24,
-							"id"=>$id
-							);
+							"id"=>$id,
+							"ttpage" => $page,
+							"subpage" => $subpage );
 							$this->framesfound++ ;
+
 						}
 
+						}
 					}
-				}
-				// TODO
 
 				break;
 
@@ -336,14 +632,58 @@ class ViewdataViewer {
 				}
 				break;
 
+			case VVTYPE_VTP:
+				$ttpage = dechex(ord($temp{5})) . substr('0' . dechex(ord($temp{4})),-2);
+				$n = ord($temp{6});
+				$offset = 0x76;
+				$subpage = 0;
+				for ($offset = 0x76; $offset < $flen; $offset += 970) {
+					if ($flen - $offset > 500) { // lose crap at end of file
+						$subpage = ord($temp{$offset + 0x3c2});
+						$this->frameindex[$this->framesfound] = array("file" => $dat, "offset" => $offset,
+							"size" => 960, "height" =>24, "ttpage" => $ttpage, 'subpage' => substr('0000' . $subpage, -4));
+						$this->framesfound++ ;
+						$subpage++;
+					}
+				}
+				break;
+
+
+			case VVTYPE_TFLINKS:
+				$dom = new DOMDocument();
+				$temp = strip_tags($temp, '<a>');
+				$dom->loadHTML($temp);
+				$as = $dom->getElementsByTagName('a');
+				$last = null;
+				$subpage = 1;
+				foreach ($as as $a){
+					$pagenumber = $a->textContent;
+					$link = $a->getAttribute('href');
+//					echo $pagenumber . ' ' . $link . '<br>';
+					if (strlen($link) > 1200 && strlen($pagenumber) == 3) {
+						if ($pagenumber == $last) {
+							$subpage++;
+						} else {
+							$subpage = 1;
+						}
+						$tf = substr($link, strpos($link, '#')+1);
+						$this->frameindex[$this->framesfound] = array("file" => $dat, "tf" => $tf,
+							 "size" => 1008, "height" =>25, "ttpage" => $pagenumber, "subpage" => substr('0000' . $subpage, -4));
+						$this->framesfound++ ;
+					}
+					$last = $pagenumber;
+				}
+				break;
+
 			case VVTYPE_TT:
 				$offset = 0;
 				$len = ord(substr($temp,$offset,1))+256*ord(substr($temp,$offset+1,1));
 				$blkcnt=0;
 				$fltemp = array();
 				while($offset < $flen && ord(substr($temp,$offset-($offset%2048)+2047,1))<5){
-					$ttpage=dechex(ord(substr($temp,$offset+2,1))+256*ord(substr($temp,$offset+3,1)));
-					$subpage=ord(substr($temp,$offset+4,1))+256*ord(substr($temp,$offset+5,1));
+					$ttpage=dechex(ord(substr($temp,$offset+14,1))+256*ord(substr($temp,$offset+15,1)));
+//					$subpage=ord(substr($temp,$offset+16,1))+256*ord(substr($temp,$offset+17,1));
+					$subpage = $this->zeropad(dechex(ord($temp{$offset+17})),2) . $this->zeropad(dechex(ord($temp{$offset+16})),2);
 					if ($len) {
 						$fltemp[] = array("file" => $dat, "offset" => $offset, "size" => $len, "height" => 24, "ttpage"=>$ttpage, "subpage"=>$subpage);
 						$offset += $len;
@@ -368,6 +708,91 @@ class ViewdataViewer {
 				$this->frameindex = array_merge($this->frameindex,$fltemp);
 				break;
 
+			case VVTYPE_VTF:	// Quantec QMX TODO
+				// bloody hell this is ..  weird...
+
+				// TODO... something. for now, very temporary single entry -
+				$this->frameindex[$page] = array("file" => $dat,
+				"offset"=> 0x400,
+				"size" => 1024,
+				"height"=>24,
+				"id"=>"0a" );
+				$this->framesfound = 1 ;
+
+				// TODO !!!!
+
+				break;
+			case VVTYPE_G7JJF:		// this is basically a raw teletext data stream
+
+				// ! Frame here relates to TV transmission frames!
+ 				$numFrames = (int)($flen / 860);
+				For ($frame = 0; $frame < $numFrames; $frame++) {
+
+ 					$offset = $frame * 860; // + 1;
+					$ScreenB = substr($temp, $offset, 860);
+
+					// scan lines..
+					For ($i = 3; $i <= 15; $i++) {
+
+ 						$X = ord($ScreenB{$i * 43 + 0});
+ 						$y = ord($ScreenB{$i * 43 + 1});
+
+	 					$mag = ($X & 2) / 2 + (($X & 8) / 8) * 2 + (($X & 32) / 32) * 4;
+
+	 					If ($mag == 0) $mag = 8;
+
+	           			$row = ($X & 128) / 128 + (($y & 2) / 2) * 2 + (($y & 8) / 8) * 4 + (($y & 32) / 32) * 8 + (($y & 128) / 128) * 16;
+
+
+//	'            Debug.Print "Offset : " & Hex$(i * 43 + frame * 860) & ", Row " & i & " : " & Hex$(x) & ", " & Hex$(y) & ", " & mag & ", " & row & " ";
+//	            echo "Found at frame $frame Offset $offset  Mag $mag  Row $row <br>\n";
+
+						If ($row == 0 And $X <> 0) {
+
+			                $X = ord($ScreenB{$i * 43 + 2});
+			                $y = ord($ScreenB{$i * 43 + 3});
+
+			                $pageu = ($X & 2) / 2 + (($X & 8) / 8) * 2 + (($X & 32) / 32) * 4 + (($X & 128) / 128) * 8;
+			                $paget = ($y & 2) / 2 + (($y & 8) / 8) * 2 + (($y & 32) / 32) * 4 + (($y & 128) / 128) * 8;
+
+			                $page = $mag . dechex($paget) . dechex($pageu);
+
+							$w = ord($ScreenB{$i * 43 + 4});
+							$x = ord($ScreenB{$i * 43 + 5});
+							$y = ord($ScreenB{$i * 43 + 6});
+							$z = ord($ScreenB{$i * 43 + 7});
+
+							$s1 = ($w & 2) / 2 + (($w & 8) / 8) * 2 + (($w & 32) / 32) * 4 + (($w & 128) / 128) * 8;
+							$s2 = ($x & 2) / 2 + (($x & 8) / 8) * 2 + (($x & 32) / 32) * 4;
+							$s3 = ($y & 2) / 2 + (($y & 8) / 8) * 2 + (($y & 32) / 32) * 4 + (($y & 128) / 128) * 8;
+							$s4 = ($z & 2) / 2 + (($z & 8) / 8) * 2;
+
+							$subpage = $s4.dechex($s3).$s2.dechex($s1);
+
+							// Note that offset does not point to rhe exact start of the data we
+							// require, but to the tv-frame where the header occurs somewhere within ...
+							$this->frameindex[$this->framesfound] =
+								array("file" => $dat,
+								"offset" => $offset,
+								"size" => 40*26,
+								"height" =>26,				// top + 24 + fasttext line
+								"ttpage" => $page,
+								"subpage" => $subpage);
+//	echo "added {$this->framesfound} $page:$subpage<br>\n";
+							$this->framesfound++ ;
+						}
+					}
+				}
+
+				// anon function flags an error in phpedit v3 - it IS correct.
+				usort ($this->frameindex, function($a, $b) {
+					return strcmp($a['ttpage'].$a['subpage'],$b['ttpage'].$b['subpage']);
+				});
+
+				break;
+
+
+
 			default:	// actually, there shouldn't be anything arriving here now...
 /*				foreach (array(960,1024,1000,1090) as $fsize) {
 					if (abs($flen % $fsize) < 10) {  // allow for just a few bytes of crud on a file.
@@ -390,20 +815,29 @@ class ViewdataViewer {
 
 
 
-	// return metadata for a screen
+	// return metadata for a frame
 	// this is coded fairly simply and verbosely for ease of maintenance.
-	// I thought about getting clever and using tables of offsets etc, but why bother?
+	// I thought about getting clever and using tables of offsets etc, but as every type
+	// is so very different...
 
 	// remember, these should return consistent information whatever the type of data file.
+	// asking for NULL field should return an array of field names supported.
 
-	function ReturnMetaData($idx = NULL, $param){
+	function ReturnMetaData($idx = NULL, $param = NULL){
 		if ($idx === NULL) {
 			reset($this->frameindex);
 			$idx = key($this->frameindex);
 		}
 		switch($this->format){
 			case VVTYPE_GNOME: // yes I know offset will almost certainly always be Zero ..
+			case VVTYPE_GNOMEVAR:	// but these probably won't
+
 				switch($param){
+					case NULL:
+						return array('flags','cug','access','type','count','route0','route1','route2',
+						'route3','route4','route5','route6','route7','route8','route9','ip','owner',
+						'editcug','pagenumber');
+						break;
 					case "flags":	// type-dependent flags
 						return ord($this->content[$this->frameindex[$idx]["offset"]]);
 						break;
@@ -459,6 +893,12 @@ class ViewdataViewer {
 							substr($ip,0,4) == chr(160).chr(160).chr(160).chr(160) ||
 							substr($ip,0,4) == chr(0).chr(0).chr(0).chr(0) ) {
 								$ip="";
+						} else {
+							$ipp = '';
+							for ($i = 0; $i < strlen($ip); $i++) {
+								$ipp .= chr(ord($ip{$i}) & 127);
+							}
+							$ip = $ipp;
 						}
 						return $ip;
 						break;
@@ -475,26 +915,87 @@ class ViewdataViewer {
 						return substr($this->content,$this->frameindex[$idx]["offset"]+139,5);
 						break;
 					case "pagenumber": // original page number, if stored. 123456789a
+/*						// TODO - sub-page ID ?
 						$o = substr($this->content,$this->frameindex[$idx]["offset"]+128,10);
 						$p = trim(substr($this->content,$this->frameindex[$idx]["offset"]+129,10));
 						if (strlen(trim($o)) < 10 || strtoupper($p) != $p) {
-							return $p;
+							return array(substr($p,0,-1), substr($p,-1));
 						} else {
 							return FALSE;
 						}
+*/
+						return array($this->frameindex[$idx]['ttpage'],$this->frameindex[$idx]['subpage']);
 						break;
 					default:
 						return FALSE;
 				} // switch
 				break;
 			case VVTYPE_AXIS:
+				$i = 0;
 				switch($param){
-					case "pagenumber":	// original page number
-						//return trim(substr($this->content,$this->frameindex[$idx]["offset"]+2,10));
-						return $idx;
+					case NULL:
+						return array('pagenumber', 'route0', 'route1', 'route2', 'route3', 'route4',
+						 'route5', 'route6', 'route7', 'route8', 'route9', 'route#' );	// erm ..
 						break;
+
+					case "pagenumber":	// original page number
+						$p = trim(substr($this->content,$this->frameindex[$idx]["offset"]+2,10));
+						return array(substr($p,0,-1), substr($p,-1));
+						break;
+					case "route#":
+						$i++;
+					case "route9":
+						$i++;
+					case "route8":
+						$i++;
+					case "route7":
+						$i++;
+					case "route6":
+						$i++;
+					case "route5":
+						$i++;
+					case "route4":
+						$i++;
+					case "route3":
+						$i++;
+					case "route2":
+						$i++;
+					case "route1":
+						$i++;
 					case "route0":
-						// TODO do we return page number or id number?  frameindex is currently indexec by id number!
+						$j = $this->frameindex[$idx]["offset"]+42+2*$i;
+						$route = "";
+						// get frame id for route
+						$id = 256 * ord($this->content[$j]) + ord($this->content[$j+1]);
+						if ($id != 0) {
+							// scan content tables for this id
+							for ($h = 0; $h < strlen($this->content); $h = $h+352256) {
+								for ($i = 16; $i < 4096; $i = $i + 12) {
+									$p = 256 * ord($this->content[$h+$i+10]) + ord($this->content[$h+$i+11]);
+									if ($p == $id) {
+										// found it, get textual page name.
+										$route = trim(substr($this->content,$h+$i,10));
+										break;
+									}
+								}
+
+							}
+							if ($route == "") {
+								$route = "?NotFound";
+							} else {
+								// This format is odd in that any route can point to any frame,
+								// not just the first 'a' frame of a page!  So, if destination
+								// is NOT first frame on a page, return array of page, subframe id.
+								if (substr($route,-1) == 'a') {
+									return substr($route,0,-1);
+								} else {
+									return array(substr($route,0,-1),substr($route,-1));
+								}
+							}
+						}
+
+						return $route;
+						break;
 						break;
 					default:
 						return FALSE;
@@ -504,8 +1005,17 @@ class ViewdataViewer {
 			case VVTYPE_AXIS_I:
 				$i=0;
 				switch($param){
+					case NULL:
+						return array('pagenumber','route0','route1','route2',
+						'route3','route4','route5','route6','route7','route8','route9');
+						break;
+
 					case "pagenumber":	// original page number
 //						return trim(substr($this->content,$this->frameindex[$idx]["offset"]+2,10));
+						if ( !empty( $this->frameindex[$idx]["subpage"] ) ) {
+							return array( $this->frameindex[$idx]["ttpage"] ,
+								$this->frameindex[$idx]["subpage"]);
+						}
 						return $idx;
 						break;
 					case "route9":
@@ -529,7 +1039,9 @@ class ViewdataViewer {
 					case "route0":
 						$route="";
 						for ($j=0;$j<5;$j++)
-							$route .= str_pad(dechex(ord($this->content[$this->frameindex[$idx]["offset"]+34+$j+5*($i % 10)])),2,"0",STR_PAD_LEFT);
+							$route .= str_pad(
+								dechex(ord($this->content[$this->frameindex[$idx]["offset"]+34+$j+5*($i % 10)]))
+								,2,"0",STR_PAD_LEFT);
 						$route = 0+$route; // 800FFFFFFF -> 800
 						if ($route == 0) $route = "";
 						return $route;
@@ -542,10 +1054,81 @@ class ViewdataViewer {
 				;
 				break;
 
-*/// TODO the rest of the formats!  Do any others actually have any metadata?
+*/
+
+			case VVTYPE_TTI:
+				if ($param == null) {
+					 return array('pagenumber','red','green','yellow','blue','link4','index', 'cycletime', 'language',
+					 'description', 'mrg-ps');
+				}
+
+			case VVTYPE_G7JJF:
+				switch($param){
+					case NULL:
+						return array('pagenumber','red','green','yellow','blue','link4','index');
+
+					case "pagenumber":	// original page number
+						return array($this->frameindex[$idx]["ttpage"],(string)$this->frameindex[$idx]["subpage"]); //(string)substr('0000' . (string)$this->frameindex[$idx]["subpage"],-4));
+					default:
+						if (isset($this->frameindex[$idx][$param])) {
+							return $this->frameindex[$idx][$param];
+						}
+				}
+				break;
+
+			case VVTYPE_JOHNCLARKE:
+				$i = 0;
+				switch($param){
+					case NULL:
+						return array('pagenumber', 'route0', 'route1', 'route2', 'route3', 'route4',
+						 'route5', 'route6', 'route7', 'route8', 'route9' );	// erm ..
+						break;
+
+					case "pagenumber":	// original page number
+						return array($this->frameindex[$idx]['ttpage'],$this->frameindex[$idx]['subpage']);
+					case "route9":
+						$i++;
+					case "route8":
+						$i++;
+					case "route7":
+						$i++;
+					case "route6":
+						$i++;
+					case "route5":
+						$i++;
+					case "route4":
+						$i++;
+					case "route3":
+						$i++;
+					case "route2":
+						$i++;
+					case "route1":
+						$i++;
+					case "route0":
+
+						$r = substr($this->content,
+							$this->frameindex[$idx]['offset'] + 10 + $i * 9 , 9);
+						if ($r == '999999999') {
+							return '';
+						} else if ($r == '000000000') {
+							return '0';
+						} else
+							return ltrim($r,'0 ');
+				}
+
 			default:
-				return FALSE;
-		} // switch
+				switch($param){
+					case NULL:
+						return array('pagenumber');
+						break;
+
+					case "pagenumber":	// original page number
+						return array($this->frameindex[$idx]["ttpage"],(string)$this->frameindex[$idx]["subpage"]); //	(string)substr('0000' . (string)$this->frameindex[$idx]["subpage"],-4));
+						break;
+				}
+			} // switch
+
+// TODO the rest of the formats!  Do any others actually have any metadata?
 	}
 
 
@@ -662,7 +1245,7 @@ class ViewdataViewer {
 			return FALSE;
 		}
 
-		if ($rawtext === NULL) {
+		if ($this->format != VVTYPE_TFLINKS && $rawtext === NULL) {
 			if (-1 == ($l = $this->frameindex[$idx]["size"])) {
 				// length == -1 means unknown length but terminated with &FF. really? why? hmm.  This is qa VVTYPE_JOHNCLARKE format.
 				$l = strpos($this->content,chr(255),$this->frameindex[$idx]["offset"]);
@@ -691,18 +1274,98 @@ class ViewdataViewer {
 
 			case VVTYPE_ABZTTXT:
 				$rawtext = substr($rawtext,0,920);
+				// no break, drop through
 			case VVTYPE_PLUS3:
+			case VVTYPE_VTP:
 				$rawtext = substr($rawtext,0,960);	// if ABZ will already be 920..
+				// no break, drop through
+			case VVTYPE_24x40:
+			case VVTYPE_25x40:
 			case VVTYPE_MODE7:
 				$rp = 0;
+				// no break, drop through
 			case VVTYPE_GNOME:
 				if ($this->format == VVTYPE_GNOME) $rp = 104;
 				// TODO - Massage top line if it's a host frame not a saved frame.
+				// what if it's a dynamic or "as raw" frame?
 				for ($tp=0; $tp<strlen($text) && $rp <strlen($rawtext); $tp++) {
 					$text[$tp] = chr(ord($rawtext[$rp]) & 127);
 					$rp++;
 				}
 				break;
+			case VVTYPE_GNOMEVAR:
+				$tp = 104;
+				$cx = 0; $cy=0;
+				$esc=0;
+				while ($tp < 1024) {
+					$char = ord($rawtext[$tp]);
+					if ($char >= 160) {
+						$char = $char & 127;
+					}
+					switch(0+$char){
+						case 0 :
+							break;
+						case 13 :
+							$cx = 0;
+							break;
+						case 9:
+							$cx++;
+							break;
+						case 10 :
+							$cy++;
+							if ($cy>$height - 1) $cy=0;
+							break;
+						case 8:
+							$cx -= 1;
+							break;
+						case 11:
+							$cy--;
+							if ($cy<0) $cy=$height - 1;
+							break;
+						case 27:
+							$esc = 1; //!$esc;
+							break;
+						case 30:
+							$cx = $cy = 0;
+							break;
+
+						case 15:
+
+							break;
+
+						case 12:	// used by Prestel to indicate start of field (c.f. Response frames)
+							$char = 27;	// Store an Esc instead
+							// drop into
+						default:
+							if ($esc || $char > 127) {
+								$esc = 0;
+								$char = $char & 31; // ESC A stored as #01
+							}
+							$text[($cx+($width * $cy))] = chr($char & 127);
+							$cx++;
+							break;
+					} // switch
+					if ($cx>$width - 1) {
+						$cx=0;
+						$cy++;
+						if ($cy>$height - 1) $cy=0;
+					}
+					if ($cx<0) {
+						$cx=$width - 1;
+						$cy--;
+						if ($cy<0) $cy=$height - 1;
+					}
+					$tp++;
+				}
+				break;
+				break;
+
+			case VVTYPE_TTI:
+				foreach ($this->frameindex[$idx]['content'] as $key => $value){
+					$text = substr_replace($text,substr(str_pad($value,$width),0,$width),$key*$width,$width);
+				}
+				break;
+
 
 
 			case VVTYPE_TT:
@@ -721,6 +1384,8 @@ class ViewdataViewer {
 
 			case VVTYPE_AXIS_I:
 				$tp = $rp = 104;
+				// no break, drop through
+
 			case VVTYPE_AXIS:
 /*				if ($this->format == VVTYPE_AXIS) $rp = 64;
 				for ($tp=0; $tp<strlen($text) && $rp <1024; $tp++) {
@@ -733,6 +1398,7 @@ class ViewdataViewer {
 				for (; $rp<strlen($rawtext); $rp++) {
 					if (($c = ord($rawtext[$rp]))>127) $rawtext[$rp] = chr($c-64);
 				}
+				// no break, drop through
 
 			case VVTYPE_SVREADER:		// ctrl codes plus colour codes 80-9F
 				if ($this->format == VVTYPE_SVREADER) $tp = 190;
@@ -773,7 +1439,9 @@ class ViewdataViewer {
 						case 15:
 
 							break;
-
+						case 12:	// used by Prestel to indicate start of field (c.f. Response frames)
+							$char = 27;	// Store an Esc instead
+							// drop into
 						default:
 							if ($esc) {
 								$esc = 0;
@@ -796,6 +1464,137 @@ class ViewdataViewer {
 					$tp++;
 				}
 				break;
+
+			case VVTYPE_G7JJF:
+
+				// ! Frame here relates to TV transmission frames!
+				// so ... [offset] refers to start record. So ignore $rawtext here as it won't
+				// be long enough.
+
+				// Much code ripped & translated from VB6 program at https://www.g7jjf.com/teletext.htm
+
+				$grabbing = false;
+				for ($offset = $this->frameindex[$idx]["offset"]; $offset < strlen($this->content); $offset+=860) {
+
+					$ScreenB = substr($this->content, $offset, 860);
+
+					// scan lines..
+					For ($i = 3; $i <= 15; $i++) {
+
+						$X = ord($ScreenB{$i * 43 + 0});
+						$y = ord($ScreenB{$i * 43 + 1});
+
+						$mag = ($X & 2) / 2 + (($X & 8) / 8) * 2 + (($X & 32) / 32) * 4;
+
+						If ($mag == 0) $mag = 8;
+
+						$row = ($X & 128) / 128 + (($y & 2) / 2) * 2 + (($y & 8) / 8) * 4 + (($y & 32) / 32) * 8 + (($y & 128) / 128) * 16;
+
+
+						//	'            Debug.Print "Offset : " & Hex$(i * 43 + frame * 860) & ", Row " & i & " : " & Hex$(x) & ", " & Hex$(y) & ", " & mag & ", " & row & " ";
+						//	            Print #txt, "Offset : " & Hex$(i * 43 + frame * 860) & ", Row " & i & " : " & Hex$(X) & ", " & Hex$(y) & ", " & mag & ", " & row & " ";
+
+						If ($row == 0 And $X <> 0) {
+							if ($grabbing && $this->frameindex[$idx]['ttpage']{0} == $mag) {
+										// We end reception of a page when get header for the next one in that mag.
+								break 2;	// (so need to break when hit the second header whatever page it is.)
+							}
+							$X = ord($ScreenB{$i * 43 + 2});
+							$y = ord($ScreenB{$i * 43 + 3});
+
+							$pageu = ($X & 2) / 2 + (($X & 8) / 8) * 2 + (($X & 32) / 32) * 4 + (($X & 128) / 128) * 8;
+							$paget = ($y & 2) / 2 + (($y & 8) / 8) * 2 + (($y & 32) / 32) * 4 + (($y & 128) / 128) * 8;
+
+							$page = $mag . dechex($paget) . dechex($pageu);
+							$w = ord($ScreenB{$i * 43 + 4});
+							$x = ord($ScreenB{$i * 43 + 5});
+							$y = ord($ScreenB{$i * 43 + 6});
+							$z = ord($ScreenB{$i * 43 + 7});
+
+							$s1 = ($w & 2) / 2 + (($w & 8) / 8) * 2 + (($w & 32) / 32) * 4 + (($w & 128) / 128) * 8;
+							$s2 = ($x & 2) / 2 + (($x & 8) / 8) * 2 + (($x & 32) / 32) * 4;
+							$s3 = ($y & 2) / 2 + (($y & 8) / 8) * 2 + (($y & 32) / 32) * 4 + (($y & 128) / 128) * 8;
+							$s4 = ($z & 2) / 2 + (($z & 8) / 8) * 2;
+
+							$subpage = $s4.dechex($s3).$s2.dechex($s1);
+
+							if ($page == $this->frameindex[$idx]['ttpage']
+							 && $subpage == $this->frameindex[$idx]['subpage']) {
+								$grabbing = true;
+								For ($z = 0; $z <= 7; $z++){
+									$text{$z} = Chr(32);		// row 0 so is first 40 bytes
+								}
+								For ($z = 8; $z<= 39; $z++) {
+									$text{$z} = Chr(ord($ScreenB{$i * 43 + 2 + $z}) & 127);
+								}
+							}
+
+/*							$this->frameindex[$this->framesfound] =
+								array("file" => $dat,
+								"offset" => $offset,
+								"size" => 1008,
+								"height" =>25,
+								"ttpage" => $ttpage,
+								"subpage" => $subpage);
+							$this->framesfound++ ;
+*/
+						}
+
+						// page content
+						If ($row > 0 && $row <= $height && $grabbing && $this->frameindex[$idx]['ttpage']{0} == $mag  ) {
+							For ($z = 0; $z<= 39; $z++) {
+								$text{$row * $width + $z} = Chr(ord($ScreenB{$i * 43 + 2 + $z}) & 127);
+							}
+						}
+
+						// fast text links
+						If ($row == 27 && $grabbing && $this->frameindex[$idx]['ttpage']{0} == $mag  ) {
+							$X = ord($ScreenB{$i * 43 + 2 + 0});
+
+							$code = $this->deham($X);
+							if ($code == 0) {	// standard fasttext
+
+								foreach (array(0=>"red", 1=>"green", 2=>"yellow", 3=>"blue", 4=>"link4", 5=>"index") as $li => $label){
+
+									$X = ord($ScreenB{$i * 43 + 3 + $li * 6 + 0});
+									$y = ord($ScreenB{$i * 43 + 3 + $li * 6 + 1});
+
+									$pl = dechex($this->deham($y)) . dechex($this->deham($X));
+
+									$w = ord($ScreenB{$i * 43 + 3 + $li * 6 +2});
+									$x = ord($ScreenB{$i * 43 + 3 + $li * 6 +3});
+									$y = ord($ScreenB{$i * 43 + 3 + $li * 6 +4});
+									$z = ord($ScreenB{$i * 43 + 3 + $li * 6 +5});
+
+									$s1 = ($w & 2) / 2 + (($w & 8) / 8) * 2 + (($w & 32) / 32) * 4 + (($w & 128) / 128) * 8;
+									$s2 = ($x & 2) / 2 + (($x & 8) / 8) * 2 + (($x & 32) / 32) * 4;
+									$s3 = ($y & 2) / 2 + (($y & 8) / 8) * 2 + (($y & 32) / 32) * 4 + (($y & 128) / 128) * 8;
+									$s4 = ($z & 2) / 2 + (($z & 8) / 8) * 2;
+
+									$subpage = $s4.dechex($s3).$s2.dechex($s1);
+
+									$m = ((int)($this->deham($z) / 4)) * 2 + (int)($this->deham($x) / 8);
+
+									if ($subpage == '3f7f') $subpage = '';
+									if ($pl == 'ff') {
+										$pl = '';
+									} else {
+										$pl = ($m | $mag) . $pl;
+									}
+
+									$this->frameindex[$idx][$label] = $pl . $subpage;
+								}
+							}
+						}
+					}
+				}
+
+
+				break;
+
+			case VVTYPE_TFLINKS:
+					$text = $this->from_hash($this->frameindex[$idx]['tf']);
+				break;
 			default:
 //				echo "incorrect format?";
 				return FALSE;
@@ -809,15 +1608,22 @@ class ViewdataViewer {
 		return TRUE;
 	}
 
+	// used by g7jjf decoder.
+	private function deham($b) {
+		return ($b & 2) / 2 + (($b & 8) / 8) * 2 + (($b & 32) / 32) * 4 + (($b & 128) / 128) * 8;
+	}
 
 
-// $thumbnail is now the "size" (width) required... not applicable if textmode set, of course.
+
+// $thumbnail is now the "size" (width in pixels) required... not applicable if textmode set, of course.
 
 	function createImage($textmode, $text, $width = 40, $height = 24, $flags = 0, $thumbnail = 0) {
 		// ripped right out of vv 0.5.Q
 		// therefore probably needs tidying up considerably.
 
 		$aspect_ratio = 1.2;	// aspect ratio (text pixels are not square.)
+
+		$black = (($flags & VVFLAG_NOBLACK) == 0);
 
 		// font sizes. must match that in font files
 		$fwidth = 12;
@@ -906,10 +1712,10 @@ class ViewdataViewer {
 				$graphics=$newgraph;
 				$conceal=$newconc;
 
-				$char = ord($text[$tp]); // int!
 				if ($doublebottom) { // if we're on the bottom row of a double height bit
 					$char = $prev[$cx]; // use character from previous row!
 				} else { // otherwise
+					$char = ord($text[$tp]); // int!
 					$prev[$cx] = $char; // store this character for next time ..
 				}
 
@@ -971,6 +1777,8 @@ class ViewdataViewer {
 						case 154:		// seperated graphics
 							$newsep = 1;
 							break;
+//						case 155:		// an Escape indicates start of a field
+										// let default replace it with a space.
 						case 156:		// black background
 							$cb = 0;
 							break;
@@ -1023,14 +1831,15 @@ class ViewdataViewer {
 				if ($doublebottom && (!$double || $textmode)) $char = 32;
 				// offset to get graphics characters within fontfile
 				// switch to alternate font files for double height
-				if ($double) {
-					if ($doublebottom) {
-						$fnum = $fontnumbot;
-					} else {
-						$fnum = $fontnumtop;
-					}
-				} else $fnum = $fontnum;
-
+				if (!$textmode) { // don't bother for text mode
+					if ($double) {
+						if ($doublebottom) {
+							$fnum = $fontnumbot;
+						} else {
+							$fnum = $fontnumtop;
+						}
+					} else $fnum = $fontnum;
+				}
 				// OK we now have everything we need to write a character!
 				if ($textmode) {
 					if ($char == 32) {
@@ -1130,6 +1939,7 @@ class ViewdataViewer {
 	}
 
 
+
 	// function to return friendly name for a given type number.
 
 	public function vvtypes($val){
@@ -1158,6 +1968,22 @@ class ViewdataViewer {
 				return "JCC Workstation Data";
 			case VVTYPE_EP1:
 				return ".EP1 file (Ant)";
+			case VVTYPE_VTF:
+				return "Quantec QMX database";
+			case VVTYPE_G7JJF:
+				return "GJ77F Beebem TTxt Server data";
+			case VVTYPE_TFLINKS:
+				return "HTML page of edit.tf links";
+	 		case VVTYPE_TTI:
+				return "MRG Inserter format TTI/TTIX";
+	 		case VVTYPE_24x40:
+	 			return ".TTX (24x40 n*960B)";
+	 		case VVTYPE_25x40:
+	 			return ".TTX (25x40 n*1000B)";
+	 		case VVTYPE_GNOMEVAR:
+	 			return "Sequential Gnomeish files (Rob)";
+	 			break;
+
 			default:
 				return FALSE;
 		}
@@ -1190,7 +2016,230 @@ class ViewdataViewer {
 		}
 	}
 
+
+	// Return an http://edit.tf/#hashstring
+	// straight port from https://github.com/rawles/edit-tf/blob/gh-pages/teletext-editor.js
+
+public function to_hash($data, $cset = 0, $blackfg = 0, $extras = null ){
+
+	$b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+	$encoding = '';
+
+	// Construct the metadata as described above.
+	$metadata = $cset;
+	if ( $blackfg != 0 ) { $metadata += 8; }
+	$encoding .= "$metadata";
+	$encoding .= ":";
+
+	// Construct a base-64 array by iterating over each character
+	// in the frame.
+	$b64 = array_fill(0,1167,0);
+	for ( $r=0; $r<25; $r++ ) {
+		for ( $c=0; $c<40; $c++ ) {
+			for ( $b=0; $b<7; $b++ ) {
+
+				// How many bits into the frame information we
+				// are.
+				$framebit = 7 * (( $r * 40 ) + $c) + $b;
+
+				// Work out the position of the character in the
+				// base-64 encoding and the bit in that position.
+				$b64bitoffset = $framebit % 6;
+				$b64charoffset = (int)(( $framebit - $b64bitoffset ) / 6);
+
+				// Read a bit and write a bit.
+				if (isset($data[$r*40+$c])) {
+					$bitval = ord($data[$r*40+$c]) & ( 1 << ( 6 - $b ));
+					if ( $bitval > 0 ) { $bitval = 1; }
+				} else {
+					$bitval = 0;
+				}
+				$b64[$b64charoffset] |= $bitval << ( 5 - $b64bitoffset );
+			}
+		}
+	}
+
+	// Encode bit-for-bit.
+	for ( $i = 0; $i < 1167; $i++ ) {
+		$encoding .= $b64chars[(int)$b64[$i]];
+	}
+
+	// add extension options. https://github.com/rawles/edit-tf/wiki/Teletext-page-hashstring-format
+	// leading zeros are added and arrays imploded, but otherwise correct format must be provided by caller.
+	if (!empty($extras)) {
+		foreach (array('pn' => 3, 'ps' => 4, 'sc' => 4, 'x270' => 42, 'x280' => 64, 'x284' => 64, 'zx' => 0) as $key => $length) {
+			if (isset($extras[$key])) {
+				$value = $extras[$key];
+				if (is_array($value)) {
+					$value = implode($value);
+				}
+				if (!$length) $length = strlen($value);
+				$encoding .= ':' . strtoupper($key) . '=' . substr(str_repeat('0',$length) . $value, -$length);
+			}
+		}
+	}
+	return $encoding;
+
+/* http://temp.zxnet.co.uk/editor/#0:QIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIE
+//	CBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIEC
+    BAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECB
+    AgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBA
+    gQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAg
+    QIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAg
+    QIECBALF09-3L00ad2dBs068qDpo08xQpAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQ
+    IECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQI
+    ECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIE
+    CBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIEC
+    BAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECB
+    AgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBAgQIECBA
+    gQIECBAgQIECA:PN=100:PS=4009:SC=0:X270=1013F7F1023F7F1033F7F1043F7F8FF3F7F1003F7FF
+*/
 }
 
+public function from_hash($hashstring) {
 
-?>
+	$cc = array();
+			if ( strpos($hashstring,":") !== false ) {
+
+				// The metadata is here, so split it out.
+				$parts = explode(':',$hashstring);
+
+				// metadata is one nybble. The most significant bit is
+				// whether we're enabling black foreground. The three
+				// least significant bits describe the character set we're
+				// using.
+
+				// Extract the base-10 integer, assuming 0 (English) if it
+				// turns out not to make sense.
+				$metadata = $parts[0]|0;
+
+				$cset_reqd = $metadata & 7;
+				$blackfg = 0;
+				if ( $metadata >= 8 ) { $blackfg = 1; }
+
+/*				// A change of character set requires a reload of the font.
+				if ( $cset_reqd >= 0 && $cset_reqd < 8 && $cset != $cset_reqd ) {
+					$cset = $cset_reqd;
+					init_font($cset);
+				}
+*/
+				// The data replaces the value in hashstring ready for
+				// decoding.
+				$hashstring = $parts[1];
+			}
+
+			// We may be dealing with old hexadecimal format, in which the
+			// 1920 hexadecimal digits after the colon are such that the
+			// byte for row r and column c (both zero-indexed) is described
+			// by the two hex digits starting at position 80r+2c. Base-64
+			// is the new format. If we get a URL in the hexadecimal format
+			// the editor will convert it.
+
+			if ( strlen($hashstring) == 1920 ) {
+				// The alphabet of symbols!
+				$hexdigits = "0123456789abcdef";
+
+				// Iterate through each row and each column in that row.
+				for ( $r = 0; $r < 24; $r++) {
+
+					// It's a good test to do this backwards!
+					for ( $c = 39 ; $c >= 0; $c--) {
+
+						// Default to a space.
+						$cc[$r][$c] = 32;
+
+						// The characte offset for this value is as follows:
+						$offset = 2 * ( ( $r * 40 ) + $c );
+
+						// If the data is here, turn it into an integer between 0 and
+						// 127, and set the cc-array with that code.
+						// If it's a control character, place it, so the attributes update.
+						if ( $offset + 1 < strlen($hashstring )) {
+							$hv1 = strpos($hexdigits,$hashstring{$offset});
+							$hv2 = strpos($hexdigits, $hashstring{$offset + 1});
+							if ( $hv1 !== false && $hv2 !== false ) {
+								$newcode = ( ( $hv1 * 16 ) + $hv2 ) % 128;
+								$cc[$c][$r] = chr($newcode);
+							}
+						}
+					}
+				}
+			}
+
+			// This block deals with the new base 64 format.
+
+			// We need to be able to handle two cases here, depending on the
+			// size of the frame. 24-line frames have 1120 characters, and
+			// 25-line frames, the new way we do things, have 1167 characters.
+			// 25-line frames have two bits at the end which are ignored and
+			// just exist for padding.
+
+			if ( strlen($hashstring) == 1120 || strlen($hashstring) == 1167 ) {
+				$numlines = 25;
+				if ( strlen($hashstring) == 1120 ) { $numlines = 24; }
+
+				// As we scan across the hashstring, we keep track of the
+				// code for the current character cell we're writing into.
+				$currentcode = 0;
+
+				// p is the position in the string.
+				for ( $p = 0; $p < strlen($hashstring); $p++ ) {
+					$pc = $hashstring{$p};
+					$pc_dec = strpos("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
+						$hashstring{$p});
+
+					// b is the bit in the 6-bit base-64 character.
+					for ( $b = 0; $b < 6; $b++ ) {
+
+						// The current bit posiiton in the character being
+						// written to.
+						$charbit = ( 6*$p + $b ) % 7;
+
+						// The bit value (set or unset) of the bit we're
+						// reading from.
+						$b64bit = $pc_dec & ( 1 << ( 5 - $b ) );
+						if ( $b64bit > 0 ) { $b64bit = 1; }
+
+						// Update the current code.
+						$currentcode |= $b64bit << ( 6 - $charbit );
+
+						// If we've reached the end of this character cell
+						// and it's the last bit in the character we're
+						// writing to, set the character code or place the
+						// code.
+						if ( $charbit == 6 ) {
+
+							// Work out the cell to write to and put it there.
+							$charnum = ( ( 6*$p + $b ) - $charbit ) / 7;
+							$c = $charnum % 40;
+							$r = ($charnum - $c) / 40;
+							$cc[$r][$c] = chr($currentcode);
+
+
+							// Reset for next time.
+							$currentcode = 0;
+						}
+					}
+				}
+
+				// If we only read in a 24-line file, we need to blank the final
+				// line.
+				if ( $numlines == 24 ) {
+					for ( $x = 0; $x < 40; $x++ ) {
+						$cc[24][$x] = chr(32);
+					}
+				}
+			}
+
+	return implode('',
+		array_map(function($el){
+						return implode('',$el);
+			 		}, $cc));
+}
+function zeropad($num, $lim)
+{
+	return (strlen($num) >= $lim) ? $num : $this->zeropad("0" . $num, $lim);
+}
+
+}
