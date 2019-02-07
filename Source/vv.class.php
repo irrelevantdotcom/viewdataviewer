@@ -48,6 +48,7 @@ define ("VVTYPE_24x40",17);		// TTX format.
 define ("VVTYPE_25x40",18);		// TTX format.
 define ('VVTYPE_GNOMEVAR',19);	// varient of gnome files found in some of rob's files
 define ('VVTYPE_VTP',20);		// VTPlus files.
+define ('VVTYPE_BULK',21);		// Prestel Bulk Update file/tape
 
 // flags as used by vv.php as modifiers to the format number.
 //   Most of these (probably those marked **) are redundant.
@@ -80,19 +81,20 @@ class ViewdataViewer {
     public $framesfound;   // number of frames found in data
 	public $frameindex = array();	 	// array of arrays that hold stuff about the files..
 
-
-
+	private $addheader = false;		// add page header on fetches
+	private $headertype = 0;		// 0 - viewdata, 1 - teletext
+	private $ipheader = null;		// IP or service name
 
 
 	// load and parse file into variables above.
 	// return TRUE if successfull, FALSE if failed.
 	// $file = file on disc, $hint = format we think it might be, $fsp = original filename
-	function LoadFile($file, $hint = 0, $fsp = "") {
+	function LoadFile($file, $hint = 0, $fsp = "", $alwaysguess = false) {
 		if (file_exists($file)) {
 			$this->content = file_get_contents($file);
 			$this->sourcefile = $file;
 			if ($fsp == "") $fsp = $file;
-			if ($this->AnalyseFormat($hint, $fsp)) {
+			if ($this->AnalyseFormat($hint, $fsp, $alwaysguess)) {
 				return TRUE;
 			} else {
 				return FALSE;
@@ -102,11 +104,11 @@ class ViewdataViewer {
 		}
 	}
 	// dito from data already held
-	function LoadData($data, $hint = 0, $fsp = "") {
+	function LoadData($data, $hint = 0, $fsp = "", $alwaysguess = false) {
 		$this->content = $data;
 		$this->sourcefile = "";
 
-		return $this->AnalyseFormat($hint, $fsp);
+		return $this->AnalyseFormat($hint, $fsp, $alwaysguess);
 //		if ($this->AnalyseFormat($hint, $fsp)) {
 //			return TRUE;
 //		} else {
@@ -115,6 +117,15 @@ class ViewdataViewer {
 	}
 
 
+	function setHeader($addheader, $type, $name){
+		$this->addheader = true;
+		$this->headertype = $type;
+		$this->ipheader = $name;
+	}
+
+	function clearHeader(){
+		$this->addheader = false;
+	}
 
 
 	// analyse and return format of data
@@ -177,7 +188,6 @@ class ViewdataViewer {
 				$format += VVTYPE_VTP;
 			}
 
-
 			if ($format == 0 && substr($this->content,0,3) == "JWC") {
 				$format += VVTYPE_EPX;
 			}
@@ -186,6 +196,12 @@ class ViewdataViewer {
 				// as I don't have anything else yet!
 				$format += VVTYPE_PLUS3;
 			}
+
+			if ($format == 0 && (substr($this->content,0,6) == '016501' || // tape run header
+				substr($this->content,0,6) == '002001')) {				// online update logon req
+				$format += VVTYPE_BULK;
+			}
+
 
 			if ($format == 0 && strlen($this->content) >= 5120 ) {
 				if ( substr($this->content,4096,2) == chr(0)."F"
@@ -290,7 +306,7 @@ class ViewdataViewer {
 			$this->format = $format;
 
 			if (!$this->BuildIndex()) {
-//				echo "error in build index";
+				echo "error in build index";
 				return FALSE;
 			}
 			return TRUE;
@@ -795,7 +811,67 @@ class ViewdataViewer {
 
 				break;
 
+			case VVTYPE_BULK:
+				$cnt = 0;
+				$offset = 0;
+				$flen = strlen($this->content);
 
+				while( $offset < $flen){
+					$reclen = 0 + substr($this->content, $offset, 4);
+					$rectyp = 0 + substr($this->content, $offset+4, 2);
+
+					// these might not be valid for all record types
+					$pagenum = trim(substr($this->content, $offset+6, 9));
+					$subpage = substr($this->content, $offset+15, 1);
+
+//	echo "Offset $offset Len $reclen Type $rectyp <br>\n";
+
+					switch($rectyp){
+						case 12:		// delete page		 	(no data)
+						case 32:			// check page:			(no data)
+							$subpage = 'a';
+						case 23:		// delete frame  		(no data)
+
+							// mark this page as existing, but no other data available.
+							foreach ($this->frameindex as $idx => $val){
+								if ($val['ttpage'] == $pagenum && $val['subpage'] == $subpage) {
+									break 2;
+								}
+								$this->frameindex[$this->framesfound] =
+									array('ttpage' => $pagenum,
+											'subpage' => $subpage,
+											'offset' => false,
+											'height' => 24,
+											'size' => 0		);
+								$this->framesfound ++;
+								break;
+							}
+						case 11:		// replace frame table (meta only)
+						case 21:		// insert frame			(meta + content)
+						case 22: 		// replace frame		(content only)
+						case 24:		// re-insert frame		(meta + content)
+							foreach ($this->frameindex as $idx => $val){
+								if ($val['ttpage'] == $pagenum && $val['subpage'] == $subpage) {
+// TODO - what if a file refers to the same frame more than once?
+									$this->frameindex['offset'] = $offset;
+									break 2;
+								}
+							}
+							$this->frameindex[$this->framesfound] =
+								array('ttpage' => $pagenum,
+										'subpage' => $subpage,
+										'offset' => $offset,
+								'height' => 24,
+								'size' => $reclen	);
+							$this->framesfound ++;
+							break;
+
+
+						default:		// all other records can safely be ignored
+					} // switch
+					$offset += $reclen;
+				}
+				break;
 
 			default:	// actually, there shouldn't be anything arriving here now...
 /*				foreach (array(960,1024,1000,1090) as $fsize) {
@@ -833,6 +909,34 @@ class ViewdataViewer {
 			$idx = key($this->frameindex);
 		}
 		switch($this->format){
+
+			case VVTYPE_BULK:
+				$rectyp = 0 + substr($this->content, $this->frameindex[$idx]['offset']+4,2);
+				switch($param){
+					case NULL:
+						if ($rectyp == 22) return array('pagenumber');
+						return array('cug','access','type','route0','route1','route2',
+						'route3','route4','route5','route6','route7','route8','route9',
+						'price','pagenumber');
+						break;
+					case 'cug':
+						return substr($this->content, $this->frameindex[$idx]['offset']+17, 5);
+					case 'access':
+						return substr($this->content, $this->frameindex[$idx]['offset']+16, 1);
+					case 'price':
+						return substr($this->content, $this->frameindex[$idx]['offset']+30, 6);
+					case 'type':
+						return substr($this->content, $this->frameindex[$idx]['offset']+126, 1);
+					case "pagenumber": // original page number, if stored. 123456789a
+						return array($this->frameindex[$idx]['ttpage'],$this->frameindex[$idx]['subpage']);
+					default:
+						if (substr($param,0,5) == 'route') {
+							$route = substr($param,5);
+							return trim(substr($this->content, $this->frameindex[$idx]['offset']+36+$route*9, 9));
+						}
+						return false;
+				} // switch																			}
+
 			case VVTYPE_GNOME: // yes I know offset will almost certainly always be Zero ..
 			case VVTYPE_GNOMEVAR:	// but these probably won't
 
@@ -1413,6 +1517,14 @@ class ViewdataViewer {
 				if ($this->format == VVTYPE_JOHNCLARKE) $tp = 109;
 			case VVTYPE_RAW:			// ctrl codes
 				if ($this->format == VVTYPE_RAW ) $tp = 0;
+			case VVTYPE_BULK:
+				if ($this->format == VVTYPE_BULK ) {
+						$tp = 127;
+						if (substr($rawtext,4,2) == 22) {
+								$tp = 16;
+						}
+				}
+
 				$cx = 0; $cy=0;
 				$esc=0;
 				while ($tp <strlen($rawtext)) {
@@ -1610,6 +1722,25 @@ class ViewdataViewer {
 //		echo htmlspecialchars($text);
 //		echo "text " . strlen($text) . " raw " . strlen($rawtext);
 //		echo $text;
+
+
+		if ($this->addheader) {
+			switch($this->headertype){
+				case 0:	// viewdata
+					$header = substr($this->ipheader . str_repeat(' ',24),24);
+					$header .= chr(7) . substr($this->frameindex[$idx]['ttpage'] . $this->frameindex[$idx]['subpage'] . '          ',10);
+					$header .= chr(3) . '  0p';
+					break;
+				case 1: / ceefax
+					$header = '        ' . substr($this->ipheader . str_repeat(' ',8),8);
+					$header .= chr(7) . substr($this->frameindex[$idx]['ttpage'] . '   ',3);
+					$header .= chr(7) . date('D d M'.chr(3).'H:i/s');
+					break;
+				default:
+					;
+			} // switch
+			$text = $header . substr($text,40);
+		}
 
 		$this->frameindex[$idx]["internal"] = $text;
 		return TRUE;
@@ -1991,6 +2122,9 @@ class ViewdataViewer {
 	 			return "Sequential Gnomeish files (Rob)";
 			case VVTYPE_VTP:
 				return ".VTP VTPlus format";
+			case VVTYPE_BULK:
+				return "Prestel Bulk Update tape/file";
+
 
 			default:
 				return FALSE;
